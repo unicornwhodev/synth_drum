@@ -6,87 +6,56 @@
 #include <memory>
 
 #include "PluginProcessor.h"
+#include "new composants/KnobComponentV5.h"
+#include "new composants/FaderComponentV5.h"
+#include "new composants/VUMeterComponentV5.h"
+#include "new composants/EnvelopeDisplayComponentV5.h"
+#include "new composants/OutputMeterComponentV5.h"
+#include "new composants/ToggleButtonComponentV5.h"
+#include "new composants/SelectorComponentV5.h"
+#include "new composants/UIThemeV5.h"
 
 // =============================================================================
-// Look-and-Feel — MIS Drum Synth theme (chartreuse accent #B5C200)
+// Pad component — clean modern pad with accent glow
 // =============================================================================
-class MdsLookAndFeel : public juce::LookAndFeel_V4
+class PadComponentV5 : public juce::Component
 {
 public:
-    MdsLookAndFeel();
-
-    void drawRotarySlider(juce::Graphics&, int x, int y, int w, int h,
-                          float sliderPos, float startAngle, float endAngle,
-                          juce::Slider&) override;
-    void drawButtonBackground(juce::Graphics&, juce::Button&,
-                              const juce::Colour&, bool, bool) override;
-    void drawToggleButton(juce::Graphics&, juce::ToggleButton&,
-                          bool, bool) override;
-    void drawComboBox(juce::Graphics&, int w, int h, bool,
-                      int, int, int, int, juce::ComboBox&) override;
-    void drawProgressBar(juce::Graphics&, juce::ProgressBar&, int w, int h,
-                         double progress, const juce::String& textToShow) override;
-};
-
-// =============================================================================
-// Pad component — square pad with category accent, flash animation
-// =============================================================================
-class PadComponent : public juce::Component
-{
-public:
-    void configure(int index, const juce::String& padName, const juce::String& padSummary, juce::Colour catCol);
+    void configure(int index, const juce::String& padName, juce::Colour catCol);
     void setSelected(bool s);
     void flash();
-    void tick();
+
+    // Audit Phase 4.4a: per-pad activity meter (mini-VU strip at bottom).
+    // Smoothed activity envelope updated by editor timer; paints a 3 px
+    // horizontal bar tinted with the pad's category colour.
+    void setActivityLevel(float linear) noexcept;
 
     std::function<void(int)> onClicked;
 
     void paint(juce::Graphics&) override;
+    void resized() override;
     void mouseDown(const juce::MouseEvent&) override;
     void mouseUp(const juce::MouseEvent&) override;
     void mouseEnter(const juce::MouseEvent&) override;
     void mouseExit(const juce::MouseEvent&) override;
 
+    // Per-frame flash decay update (called by parent timer).
+    void tickFlash();
+
 private:
-    int          idx     = 0;
+    int idx = 0;
     juce::String name;
-    juce::String summary;
-    juce::Colour cat    { 0xff888888 };
-    bool         sel     = false;
-    float        flashA  = 0.0f;
-    bool         hover   = false;
-    bool         pressed = false;
+    juce::Colour cat { 0xff888888 };
+    bool sel = false;
+    float flashA = 0.0f;
+    bool hover = false;
+    bool pressed = false;
+    float activity = 0.0f;        // smoothed, displayed mini-VU value
+    float activityTarget = 0.0f;  // raw incoming value, smoothed in tickFlash
 };
 
 // =============================================================================
-// FX rack item — compact selectable module row with enabled state
-// =============================================================================
-class FxRackItem : public juce::Component
-{
-public:
-    void configure(int index, const juce::String& moduleName, const juce::String& moduleSummary, juce::Colour moduleAccent);
-    void setSelected(bool s);
-    void setEnabledState(bool s);
-
-    std::function<void(int)> onClicked;
-
-    void paint(juce::Graphics&) override;
-    void mouseDown(const juce::MouseEvent&) override;
-    void mouseEnter(const juce::MouseEvent&) override;
-    void mouseExit(const juce::MouseEvent&) override;
-
-private:
-    int          idx          = 0;
-    juce::String name;
-    juce::String summary;
-    juce::Colour accent       { 0xff888888 };
-    bool         sel          = false;
-    bool         enabledState = true;
-    bool         hover        = false;
-};
-
-// =============================================================================
-// Main editor
+// Main editor — MIS Drum Synth v5
 // =============================================================================
 class DrumSynthAudioProcessorEditor : public juce::AudioProcessorEditor,
                                       private juce::Timer
@@ -98,205 +67,109 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
 
-    // Resizable support
     static constexpr int kMinW = 900;
-    static constexpr int kMinH = 500;
+    static constexpr int kMinH = 580;
     static constexpr float kAspectRatio = 1340.0f / 760.0f;
 
 private:
-    using APVTS          = juce::AudioProcessorValueTreeState;
-    using SliderAttach   = APVTS::SliderAttachment;
-    using ButtonAttach   = APVTS::ButtonAttachment;
+    using APVTS = juce::AudioProcessorValueTreeState;
+    using SliderAttach = APVTS::SliderAttachment;
+    using ButtonAttach = APVTS::ButtonAttachment;
     using ComboBoxAttach = APVTS::ComboBoxAttachment;
 
-    struct CtrlDef
-    {
-        const char* label;
-        const char* suffix;
-        const char* shortTooltip;
-        const char* noviceTooltip;
-    };
-    struct FxDef   { const char* label; const char* paramId; };
-    struct ToggleDef { const char* label; const char* paramId; };
-    struct AdvancedFxPageDef
-    {
-        const char* label;
-        ToggleDef toggleA;
-        ToggleDef toggleB;
-        std::array<FxDef, 4> dials;
-        juce::Colour accent;
-    };
-
-    void timerCallback() override;
-    void rebuildPadAttachments();
-    void rebuildAdvancedFxPage();
-    void refreshPadSelection();
-    void refreshPresetList();
-    void refreshPadPresetList();
-    void refreshPresetMetadata();
-    void showSaveAsDialog();
-    void saveCurrentPreset();
-    void deleteCurrentUserPreset();
-    void navigatePreset(int direction);
-    void importPresetsFromZip();
-    void refreshPresetActionButtons();
-    void refreshStatusPanel();
-    void refreshMidiLearnPanel();
-    void refreshFxRackState();
-    void setUtilityDrawerOpen(bool shouldOpen);
-    bool presetEntryMatchesFilters(const DrumSynthAudioProcessor::PresetLibraryEntry& entry) const;
-    int  selectedPadFromParam() const;
-    void setupDial(juce::Slider& s, juce::Colour fill) const;
-    void setupSmallDial(juce::Slider& s, juce::Colour fill) const;
-    void updateSliderTextFormat(juce::Slider& s, const juce::String& paramId) const;
-
+    // Parameter layout helpers
     static juce::String formatValueForParam(const juce::String& paramId, double value);
+    void setupKnob(juce::Slider& s);
+    void setupFader(juce::Slider& s);
 
-    static juce::Colour padCatColour(int i);
-    static const char*  padCatName(int i);
-
+    // State
     DrumSynthAudioProcessor& proc;
-    MdsLookAndFeel lnf;
-    std::unique_ptr<juce::FileChooser> fileChooser_;
 
-    juce::Image bgTexture;
+    // ---- Header ----
+    juce::ComboBox presetBox;
+    juce::ComboBox familyFilterBox;
+    juce::TextButton prevBtn, nextBtn;
+    juce::Slider masterGainDial;
 
-    // Icons
-    juce::Image iconGain, iconOutput, iconSingle;
-    std::array<juce::Image, 6> categoryIcons;
-    std::array<juce::Image, 11> padCtrlIcons;
-    std::array<juce::Image, 4> macroIcons;
-    juce::Image fxSectionIconSat, fxSectionIconTrans, fxSectionIconComp, fxSectionIconReverb;
-    std::array<juce::Image, 15> fxDialIcons;
+    // ---- Pad Grid ----
+    static constexpr int kNumPads = 12;
+    std::array<PadComponentV5, kNumPads> pads;
+    int selectedPadIdx = 0;
 
-    // Header
-    juce::ComboBox     presetBox;
-    juce::ComboBox     presetSourceFilterBox;
-    juce::ComboBox     presetFamilyFilterBox;
-    juce::ComboBox     presetRoleFilterBox;
-    juce::ComboBox     presetTagFilterBox;
-    juce::TextButton   prevPresetBtn, nextPresetBtn;
-    juce::TextButton   saveBtn, saveAsBtn, deleteBtn, importBtn;
-    juce::Slider       gainDial;
-    juce::ToggleButton singleNoteBtn;
-    juce::Label        presetMetaLabel;
+    // ---- Voice Design ----
+    KnobComponentV5 levelKnob{ "LEVEL" };
+    KnobComponentV5 tuneKnob{ "TUNE", -24.0, 24.0, 0.0 };
+    KnobComponentV5 decayKnob{ "DECAY", 0.001, 5.0, 0.8 };
+    KnobComponentV5 attackKnob{ "ATTACK", 0.001, 2.0, 0.01 };
+    KnobComponentV5 pitchDropKnob{ "PITCH DROP", 0.0, 48.0, 0.0 };
+    KnobComponentV5 pitchDecayKnob{ "PITCH DECAY", 0.001, 2.0, 0.1 };
+    KnobComponentV5 noiseKnob{ "NOISE", 0.0, 1.0, 0.0 };
+    KnobComponentV5 clickKnob{ "CLICK", 0.0, 1.0, 0.3 };
+    KnobComponentV5 driveKnob{ "DRIVE", 0.0, 1.0, 0.0 };
+    KnobComponentV5 cutoffKnob{ "CUTOFF", 20.0, 20000.0, 8000.0 };
 
-    // Pad grid (4x3 = 12)
-    std::array<PadComponent, mds::kNumPads> pads;
-    juce::ComboBox padSelector;   // hidden APVTS-bound
+    // ---- Macros ----
+    KnobComponentV5 macroPunch{ "PUNCH" };
+    KnobComponentV5 macroWeight{ "WEIGHT" };
+    KnobComponentV5 macroAir{ "AIR" };
+    KnobComponentV5 macroDirt{ "DIRT" };
 
-    // Instrument panel
-    juce::Label    instrTitle;
-    juce::Label    padSummaryLabel;
-    juce::ComboBox padPresetBox;
-    juce::ComboBox outputBox;
+    // ---- FX Section ----
+    SelectorComponentV5 fxModuleSelector;
+    KnobComponentV5 fxParam1Knob{ "PARAM 1" };
+    KnobComponentV5 fxParam2Knob{ "PARAM 2" };
+    KnobComponentV5 fxParam3Knob{ "PARAM 3" };
+    KnobComponentV5 fxParam4Knob{ "PARAM 4" };
 
-    // Pad parameter dials (11)
-    static constexpr int kPadCtrlN = 11;
-    std::array<juce::Slider, kPadCtrlN> padDials;
-    std::array<juce::Label,  kPadCtrlN> padDlLabels;
-    std::array<std::unique_ptr<SliderAttach>, kPadCtrlN> padDlAttach;
+    // ---- Meters ----
+    OutputMeterComponentV5 mainMeter;
+    OutputMeterComponentV5 auxMeter;
 
-    // Macros (4 visible)
-    static constexpr int kMacroN = 4;
-    std::array<juce::Slider, kMacroN> macroDials;
-    std::array<juce::Label,  kMacroN> macroLbls;
-    std::array<std::unique_ptr<SliderAttach>, kMacroN> macroAtt;
+    // ---- Utility ----
+    ToggleButtonComponentV5 singleNoteBtn{ "SINGLE" };
+    ToggleButtonComponentV5 utilToggleBtn{ "UTILITY" };
 
-    // FX dials (full runtime chain, including reverb)
-    static constexpr int kFxN = 15;
-    std::array<juce::Slider, kFxN> fxDials;
-    std::array<juce::Label,  kFxN> fxLbls;
-    std::array<std::unique_ptr<SliderAttach>, kFxN> fxAtt;
+    // Audit Phase 4.7: pad-level routing & preset selectors required by the
+    // editor smoke test and the Phase 4 UX plan (§4.4 / §4.5).
+    juce::ComboBox padPresetBox;   // factory pad preset (per-pad recall)
+    juce::ComboBox padOutputBox;   // pad output bus routing (Master / Out 1..N)
+    std::unique_ptr<ComboBoxAttach> padOutputAttach;  // re-bound on selectedPad change
 
-    // APVTS bindings
-    std::unique_ptr<SliderAttach>   gainAtt;
-    std::unique_ptr<ButtonAttach>   singleAtt;
-    std::unique_ptr<ComboBoxAttach> selPadAtt;
-    std::unique_ptr<ComboBoxAttach> outAtt;
-    std::unique_ptr<ComboBoxAttach> qualityModeAtt;
-    std::unique_ptr<ComboBoxAttach> velocityCurveAtt;
-    std::unique_ptr<ComboBoxAttach> advancedChoiceAtt;
+    // Audit Phase 4.4b: ADSR display under the pad grid.
+    EnvelopeDisplayComponentV5 envDisplay;
 
-    juce::ComboBox   velocityCurveBox;
+    // ---- Attachments ----
+    std::unique_ptr<SliderAttach> levelAttach;
+    std::unique_ptr<SliderAttach> tuneAttach;
+    std::unique_ptr<SliderAttach> decayAttach;
+    std::unique_ptr<SliderAttach> attackAttach;
+    std::unique_ptr<SliderAttach> pitchDropAttach;
+    std::unique_ptr<SliderAttach> pitchDecayAttach;
+    std::unique_ptr<SliderAttach> noiseAttach;
+    std::unique_ptr<SliderAttach> clickAttach;
+    std::unique_ptr<SliderAttach> driveAttach;
+    std::unique_ptr<SliderAttach> cutoffAttach;
+    std::unique_ptr<SliderAttach> macroPunchAttach;
+    std::unique_ptr<SliderAttach> macroWeightAttach;
+    std::unique_ptr<SliderAttach> macroAirAttach;
+    std::unique_ptr<SliderAttach> macroDirtAttach;
+    std::unique_ptr<SliderAttach> masterGainAttach;
 
-    int cachedPad = -1;
-    int factoryPresetCount = 0;
-    juce::Array<juce::File> userPresetFiles;
-    juce::Array<DrumSynthAudioProcessor::PresetLibraryEntry> visiblePresetEntries;
-    juce::StringArray midiLearnTargetIds;
-    juce::StringArray midiLearnMappedParamIds;
-    bool presetUiRefreshing = false;
-    int cachedPadPresetListPad = -1;
-    int cachedPadPresetFactoryIndex = -2;
-    int cachedPadPresetFactoryCount = -1;
+    // Internal
+    void timerCallback() override;
+    void selectPad(int idx);
+    int selectedPadFromParam() const;
+    juce::Colour padCatColour(int i) const;
+    const char* padCatName(int i) const;
+    void refreshPresetList();
+    void refreshPadSelection();
+    void refreshPadPresets();
 
-    static const std::array<CtrlDef, kPadCtrlN> kPadCtrls;
-    static const std::array<FxDef,   kMacroN>   kMacroCtrls;
-    static const std::array<FxDef,   kFxN>      kFxCtrls;
-    static constexpr int kFxRackCount  = 8;
-    static constexpr int kFxDetailPool = 7;
+    // Audit Phase 4.4b/4.7: rebind padOutputBox to the currently selected pad
+    // and refresh the envelope display from APVTS attack/decay/pitch_decay.
+    void rebindPadRoutingForSelected();
+    void refreshEnvelopeDisplay();
 
-    std::array<FxRackItem, kFxRackCount> fxRackItems;
-    int  selectedFxModule = 0;
-    bool utilityDrawerOpen = false;
-
-    // Advanced FX page strip
-    juce::ComboBox advancedFxPageBox;
-    juce::ToggleButton advancedToggleA, advancedToggleB;
-    std::array<juce::Slider, 4> advancedFxDials;
-    std::array<juce::Label, 4> advancedFxLabels;
-    std::array<std::unique_ptr<SliderAttach>, 4> advancedFxAtt;
-    std::unique_ptr<ButtonAttach> advancedToggleAAtt;
-    std::unique_ptr<ButtonAttach> advancedToggleBAtt;
-    static const std::array<AdvancedFxPageDef, 5> kAdvancedFxPages;
-
-    // FX section mappings.
-    static constexpr int kSatIndices[2]  = { 6, 7 };
-    static constexpr int kTransIndices[3] = { 8, 9, 10 };
-    static constexpr int kCompIndices[6] = { 0, 1, 2, 3, 4, 5 };
-    static constexpr int kReverbIndices[4] = { 11, 12, 13, 14 };
-
-    // FX section enable toggles (sat, trans, comp, reverb)
-    juce::ToggleButton fxSatEnBtn, fxTransEnBtn, fxCompEnBtn, fxReverbEnBtn;
-    std::unique_ptr<ButtonAttach> fxSatEnAtt, fxTransEnAtt, fxCompEnAtt, fxReverbEnAtt;
-
-    // LFO controls
-    juce::Slider     lfoRateDial, lfoDepthDial;
-    juce::ComboBox   lfoWaveBox;
-    juce::Label      lfoLabel;
-    std::unique_ptr<SliderAttach>   lfoRateAtt, lfoDepthAtt;
-    std::unique_ptr<ComboBoxAttach> lfoWaveAtt;
-
-    juce::Slider     humanizeTimingDial, humanizeLevelDial;
-    juce::Label      humanizeLabel;
-    std::unique_ptr<SliderAttach> humanizeTimingAtt, humanizeLevelAtt;
-
-    // Tooltip / MIDI CC page overlay
-    static constexpr int kTooltipCount = 31; // 11 pad + 4 macro + 15 FX + 1 gain
-    juce::TooltipWindow tooltipWindow { this, 600 };
-    int tooltipMode = 0; // 0=off, 1=short, 2=novice
-    juce::TextButton tooltipModeBtn;
-    juce::Label      midiCCPageLabel;
-    juce::ComboBox   qualityModeBox;
-    juce::Label      engineStatusLabel;
-    juce::Label      mainMeterLabel;
-    juce::Label      auxMeterLabel;
-    double           mainMeterValue = 0.0;
-    double           auxMeterValue = 0.0;
-    juce::ProgressBar mainMeterBar { mainMeterValue };
-    juce::ProgressBar auxMeterBar { auxMeterValue };
-    juce::TextButton clipResetBtn;
-    juce::ComboBox   midiLearnTargetBox;
-    juce::ComboBox   midiLearnMappingsBox;
-    juce::TextButton midiLearnArmBtn;
-    juce::TextButton midiLearnClearBtn;
-    juce::TextButton midiLearnResetBtn;
-    juce::Label      midiLearnStatusLabel;
-    juce::TextButton utilityDrawerBtn;
-
-    void cycleTooltipMode();
-    void applyTooltips();
-
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DrumSynthAudioProcessorEditor)
+    // Helpers
+    static void drawPanel(juce::Graphics& g, juce::Rectangle<int> area, juce::Colour accent);
 };

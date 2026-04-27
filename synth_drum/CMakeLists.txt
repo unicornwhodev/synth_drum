@@ -79,6 +79,30 @@ target_sources(UWdeVST_drum PRIVATE
     Source/Engine/FactoryPresets.h
     Source/Engine/FxProcessors.h
     Source/Engine/SinTable.h
+
+    # V5 UI components (live in ../new composants relative to this CMakeLists.txt)
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/KnobComponentV5.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/KnobComponentV5.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/FaderComponentV5.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/FaderComponentV5.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/VUMeterComponentV5.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/VUMeterComponentV5.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/EnvelopeDisplayComponentV5.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/EnvelopeDisplayComponentV5.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/OutputMeterComponentV5.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/OutputMeterComponentV5.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/ToggleButtonComponentV5.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/ToggleButtonComponentV5.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/SelectorComponentV5.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/SelectorComponentV5.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/UIThemeV5.h"
+)
+
+# Include path so `#include "new composants/X.h"` (used by PluginEditor.h)
+# and `#include "X.h"` (used internally between V5 headers) both resolve.
+target_include_directories(UWdeVST_drum PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/.."
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants"
 )
 
 target_compile_definitions(UWdeVST_drum PRIVATE
@@ -210,6 +234,20 @@ target_sources(UWdeVST_drum_tests PRIVATE
     Source/Engine/FactoryPresets.h
     Source/Engine/FxProcessors.h
     Source/Engine/SinTable.h
+
+    # V5 UI components (same set as the VST3 target)
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/KnobComponentV5.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/FaderComponentV5.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/VUMeterComponentV5.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/EnvelopeDisplayComponentV5.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/OutputMeterComponentV5.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/ToggleButtonComponentV5.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/SelectorComponentV5.cpp"
+)
+
+target_include_directories(UWdeVST_drum_tests PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/.."
+    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants"
 )
 
 target_compile_definitions(UWdeVST_drum_tests PRIVATE

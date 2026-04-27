@@ -497,6 +497,7 @@ void testChokeGroupEnforcement()
     // Structural check: choke group assignments defined in DrumDefs.h
     require(mds::kPadCharacteristics[4].chokeGroup == 1, "Hat Closed must be in choke group 1");
     require(mds::kPadCharacteristics[5].chokeGroup == 1, "Hat Open must be in choke group 1");
+    require(mds::kPadCharacteristics[10].chokeGroup == 2, "Crash must be in choke group 2 (self-choke on retrigger)");
     require(mds::kPadCharacteristics[0].chokeGroup == 0, "Kick A must have no choke group");
     require(mds::kPadCharacteristics[1].chokeGroup == 0, "Kick B must have no choke group");
 

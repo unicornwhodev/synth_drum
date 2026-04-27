@@ -134,6 +134,11 @@ public:
     float getMainRmsMeter() const noexcept { return mainRmsMeter.load(std::memory_order_relaxed); }
     float getAuxPeakMeter() const noexcept { return auxPeakMeter.load(std::memory_order_relaxed); }
     float getAuxRmsMeter() const noexcept { return auxRmsMeter.load(std::memory_order_relaxed); }
+
+    // Audit Phase 4.4a: per-pad trigger envelope (latest velocity stamped at
+    // trigger time). Editor reads this to drive the pad mini-VU. The value is
+    // the last triggered velocity (0..~1.2); editor handles smoothing/decay.
+    float consumePadTriggerActivity(int padIndex) noexcept;
     bool isClipLatched() const noexcept { return clipLatched.load(std::memory_order_relaxed); }
     void clearClipLatch() noexcept { clipLatched.store(false, std::memory_order_relaxed); }
     float getLastHostBpm() const noexcept { return lastHostBpm.load(std::memory_order_relaxed); }
@@ -255,6 +260,7 @@ private:
     std::atomic<float> mainRmsMeter { 0.0f };
     std::atomic<float> auxPeakMeter { 0.0f };
     std::atomic<float> auxRmsMeter { 0.0f };
+    std::array<std::atomic<float>, mds::kNumPads> padTriggerActivity {};
     std::atomic<bool> clipLatched { false };
     std::atomic<float> lastHostBpm { 0.0f };
     std::atomic<bool> delaySyncActive { false };

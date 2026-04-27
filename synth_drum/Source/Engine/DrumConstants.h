@@ -58,8 +58,8 @@ constexpr float kDenormalFloor          = 1e-15f;
 constexpr float kDriveScaleFactor       = 0.75f;     // output drive range compression
 
 // ---- Velocity scaling ----
-constexpr float kVelCutoffBase          = 0.75f;     // cutoff = cutoff * (0.75 + 0.25*vel)
-constexpr float kVelCutoffRange         = 0.25f;
+constexpr float kVelCutoffBase          = 0.65f;     // cutoff = cutoff * (0.65 + 0.35*vel)
+constexpr float kVelCutoffRange         = 0.35f;     // was 0.25: +10% range for better vel dynamics
 constexpr float kPitchDropVelThreshold  = 3.0f;      // semitones above which vel scales drop
 constexpr float kPitchDropVelBase       = 0.78f;
 constexpr float kPitchDropVelRange      = 0.22f;

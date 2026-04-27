@@ -19,6 +19,15 @@ public:
     void render(juce::AudioBuffer<float>& buffer, int startSample, int numSamples);
     bool isActive() const noexcept { return active; }
 
+    // Audit Phase 3.3: queries/mutators for anti-overlap kick ducking.
+    // Used by the host processor to attenuate an already-ringing kick voice
+    // when a new kick triggers, preventing low-end accumulation.
+    float getCurrentAmplitude() const noexcept { return amplitude; }
+    void  duckAmplitude(float gainMultiplier) noexcept
+    {
+        amplitude *= juce::jlimit(0.0f, 1.0f, gainMultiplier);
+    }
+
     void setPitchBendFactor(float f) noexcept { pitchBendFactor = f; }
     void setDeterministicSeed(juce::int64 seed) noexcept { random.setSeed(seed); }
 

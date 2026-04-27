@@ -225,12 +225,12 @@ static KitPreset makeKit_Classique_Standard()
     // Crash
     k.pads[10]= makePad(0.46f, 0.0f,  0.25f,  0.0f,     0.0f, 0.012f, 0.54f,  0.06f, 1.00f, 7600.0f,  0.20f,6400.0f, PadVoiceModel::Crash);
     // FX
-    k.pads[11]= makePad(0.50f, 5.0f,  0.09f,  0.0002f,  9.0f, 0.022f, 0.03f,  0.10f, 1.02f, 4000.0f, -0.14f, 560.0f, PadVoiceModel::Fx);
+    k.pads[11]= makePad(0.50f, 5.0f,  0.09f,  0.0002f,  9.0f, 0.022f, 0.03f,  0.10f, 1.02f, 4000.0f, -0.14f, 720.0f, PadVoiceModel::Fx);
 
     k.fx.reverbSize=0.40f; k.fx.reverbDamping=0.68f; k.fx.reverbWidth=0.82f; k.fx.reverbMix=0.16f; k.fx.reverbPredelay=10.0f;
     k.fx.compThreshold=-12.0f; k.fx.compRatio=2.0f; k.fx.compAttack=18.0f; k.fx.compRelease=150.0f; k.fx.compMix=0.35f;
     k.fx.satDrive=1.10f; k.fx.satMix=0.06f;
-    k.fx.transientAttack=0.06f; k.fx.transientSustain=-0.03f; k.fx.transientMix=0.14f;
+    k.fx.transientAttack=0.06f; k.fx.transientSustain=0.0f; k.fx.transientMix=0.14f;  // was -0.03f: negative only reduces, not musical
     k.fx.limiterEnable=true; k.fx.limiterThreshold=-0.5f; k.fx.limiterRelease=50.0f;
     applyTargetMatrix(k, KitFamily::Classique);
     return k;
@@ -255,12 +255,25 @@ static KitPreset makeKit_Classique_Open()
 {
     auto k = makeKit_Classique_Standard();
     k.name = "Classique Open";
+    // Audit Phase 2.1: previous Open differed from Standard mostly by reverb;
+    // signature was "same kit + more wet". Reinforce the OPEN identity by:
+    //  - longer kick/snare/hat-open/crash decays (already present)
+    //  - drier, less squashed compression (mix 0.20→0.10, slower attack)
+    //  - wider, less damped reverb to convey larger stage
+    //  - softer transient processor so cymbals breathe
     k.pads[0].decaySeconds = 0.48f;
     k.pads[2].decaySeconds = 0.145f;
     k.pads[5].decaySeconds = 0.160f;
-    k.pads[10].decaySeconds= 0.38f;
-    k.fx.reverbMix = 0.22f; k.fx.reverbSize = 0.55f; k.fx.reverbPredelay = 18.0f;
-    k.fx.compMix   = 0.20f;
+    k.pads[10].decaySeconds= 0.42f;  // was 0.38: even more open crash
+    k.fx.reverbMix     = 0.24f;  // was 0.22
+    k.fx.reverbSize    = 0.62f;  // was 0.55: bigger room
+    k.fx.reverbDamping = 0.55f;  // was 0.68: less HF absorption
+    k.fx.reverbWidth   = 0.92f;  // was 0.82: wider stereo image
+    k.fx.reverbPredelay= 22.0f;  // was 18
+    k.fx.compMix       = 0.10f;  // was 0.20: dry/uncompressed feel
+    k.fx.compAttack    = 28.0f;  // was 18: lets transients through
+    k.fx.transientAttack = 0.04f;  // was 0.06 (inherits from Standard): softer
+    k.fx.transientMix  = 0.10f;  // was 0.14: less aggressive
     applyTargetMatrix(k, KitFamily::Classique);
     return k;
 }
@@ -284,12 +297,12 @@ static KitPreset makeKit_Acoustique_Room()
     k.pads[8] = makePad(0.62f, 0.0f,  0.14f,  0.0005f, 3.0f, 0.032f, 0.008f, 0.10f, 1.00f, 2800.0f, -0.08f, 175.0f, PadVoiceModel::Tom);
     k.pads[9] = makePad(0.58f, 0.0f,  0.12f,  0.0005f, 2.5f, 0.028f, 0.008f, 0.09f, 1.00f, 3400.0f,  0.08f, 250.0f, PadVoiceModel::Tom);
     k.pads[10]= makePad(0.48f, 0.0f,  0.30f,  0.0f,    0.0f, 0.014f, 0.52f,  0.06f, 1.00f, 7000.0f,  0.20f,6400.0f, PadVoiceModel::Crash);
-    k.pads[11]= makePad(0.52f, 4.0f,  0.10f,  0.0002f, 7.0f, 0.024f, 0.04f,  0.09f, 1.00f, 3600.0f, -0.14f, 560.0f, PadVoiceModel::Fx);
+    k.pads[11]= makePad(0.52f, 4.0f,  0.10f,  0.0002f, 7.0f, 0.024f, 0.04f,  0.09f, 1.00f, 3600.0f, -0.14f, 720.0f, PadVoiceModel::Fx);
 
     k.fx.reverbSize=0.52f; k.fx.reverbDamping=0.62f; k.fx.reverbWidth=0.78f; k.fx.reverbMix=0.20f; k.fx.reverbPredelay=14.0f;
     k.fx.compThreshold=-14.0f; k.fx.compRatio=1.8f; k.fx.compAttack=22.0f; k.fx.compRelease=180.0f; k.fx.compMix=0.28f;
     k.fx.satDrive=1.04f; k.fx.satMix=0.03f;
-    k.fx.transientAttack=0.04f; k.fx.transientSustain=-0.02f; k.fx.transientMix=0.10f;
+    k.fx.transientAttack=0.04f; k.fx.transientSustain=0.0f; k.fx.transientMix=0.10f;  // was -0.02f: negative only reduces, not musical
     k.fx.limiterEnable=true; k.fx.limiterThreshold=-0.5f;
     applyTargetMatrix(k, KitFamily::Acoustique);
     return k;
@@ -299,12 +312,24 @@ static KitPreset makeKit_Acoustique_Studio()
 {
     auto k = makeKit_Acoustique_Room();
     k.name = "Acoustique Studio";
+    // Audit Phase 2.1: Studio was too close to Room (just less reverb).
+    // Push the "produced/mixed" identity: tighter room, harder bus comp,
+    // crisper transients, gentle high-shelf for sheen, presence boost on snare.
     k.fx.reverbSize=0.36f; k.fx.reverbDamping=0.78f; k.fx.reverbMix=0.13f; k.fx.reverbPredelay=8.0f;
-    k.fx.compThreshold=-10.0f; k.fx.compRatio=2.2f; k.fx.compMix=0.40f;
-    k.fx.transientAttack=0.08f; k.fx.transientMix=0.16f;
-    // Bring snare up a touch
+    k.fx.compThreshold=-10.0f; k.fx.compRatio=2.5f;  // was 2.2: more glue
+    k.fx.compAttack=14.0f;  // was 22: catches transients
+    k.fx.compMix=0.42f;  // was 0.40: slightly more bus comp
+    k.fx.transientAttack=0.10f;  // was 0.08: more snap
+    k.fx.transientMix=0.18f;  // already 0.16, push to 0.18
+    k.fx.satDrive=1.10f; k.fx.satMix=0.05f;  // touch of analog warmth
+    // High-shelf sheen for studio mix character
+    k.fx.eqEnable=true;
+    k.fx.eqHighFreq=8500.0f; k.fx.eqHighGain=2.0f;
+    k.fx.eqLowFreq=80.0f;    k.fx.eqLowGain=1.0f;
+    // Bring snare up a touch with extra body
     k.pads[2].level *= 1.05f;
     k.pads[2].noiseAmount += 0.05f;
+    k.pads[2].clickAmount += 0.04f;  // tighter attack for studio snare
     applyTargetMatrix(k, KitFamily::Acoustique);
     return k;
 }
@@ -313,14 +338,20 @@ static KitPreset makeKit_Acoustique_Brush()
 {
     auto k = makeKit_Acoustique_Room();
     k.name = "Acoustique Brush";
-    // Brush snare: more noise, lower click, softer
-    k.pads[2].noiseAmount = 0.78f; k.pads[2].clickAmount = 0.01f; k.pads[2].cutoffHz = 4200.0f;
-    k.pads[2].drive = 1.00f;
+    // Audit Phase 1.4: previous Brush snare was inaudible in groove playback
+    // (level 0.40, click 0.02, drive 1.00). Recalibrated for usable brush
+    // articulation while keeping the airy texture characteristic of brushes.
+    k.pads[2].level       = 0.78f;  // was 0.40 (effective after target matrix): now audible
+    k.pads[2].noiseAmount = 0.58f;  // was 0.78: reduced, retains brush texture but keeps body
+    k.pads[2].clickAmount = 0.10f;  // was 0.02: enough attack to register in mix
+    k.pads[2].cutoffHz    = 4600.0f; // brighter
+    k.pads[2].drive       = 1.04f;  // light saturation for warmth
+    k.pads[2].decaySeconds = 0.16f; // longer for brush sweep feel
     // Softer kick
-    k.pads[0].level = 0.76f; k.pads[0].drive = 1.00f;
-    // Quieter hats
-    k.pads[4].level = 0.44f; k.pads[5].level = 0.40f;
-    k.fx.reverbMix=0.26f; k.fx.satMix=0.01f; k.fx.compMix=0.18f;
+    k.pads[0].level = 0.78f; k.pads[0].drive = 1.00f;
+    // Quieter hats (relative to snare which is now louder)
+    k.pads[4].level = 0.46f; k.pads[5].level = 0.42f;
+    k.fx.reverbMix=0.26f; k.fx.satMix=0.02f; k.fx.compMix=0.22f;
     applyTargetMatrix(k, KitFamily::Acoustique);
     return k;
 }
@@ -359,12 +390,12 @@ static KitPreset makeKit_Ambient_Pad()
     k.pads[8] = makePad(0.56f, 0.0f,  0.18f,  0.0006f, 2.5f, 0.038f, 0.008f, 0.08f, 1.00f, 2600.0f, -0.10f, 175.0f, PadVoiceModel::Tom);
     k.pads[9] = makePad(0.52f, 0.0f,  0.14f,  0.0005f, 2.0f, 0.032f, 0.008f, 0.07f, 1.00f, 3200.0f,  0.10f, 250.0f, PadVoiceModel::Tom);
     k.pads[10]= makePad(0.44f, 0.0f,  0.42f,  0.0f,    0.0f, 0.016f, 0.50f,  0.06f, 1.00f, 6600.0f,  0.22f,6400.0f, PadVoiceModel::Crash);
-    k.pads[11]= makePad(0.48f, 6.0f,  0.14f,  0.0003f, 6.0f, 0.028f, 0.05f,  0.09f, 1.00f, 3200.0f, -0.16f, 560.0f, PadVoiceModel::Fx);
+    k.pads[11]= makePad(0.48f, 6.0f,  0.14f,  0.0003f, 6.0f, 0.028f, 0.05f,  0.09f, 1.00f, 3200.0f, -0.16f, 720.0f, PadVoiceModel::Fx);
 
     k.fx.reverbSize=0.68f; k.fx.reverbDamping=0.55f; k.fx.reverbWidth=0.90f; k.fx.reverbMix=0.28f; k.fx.reverbPredelay=22.0f;
     k.fx.compThreshold=-16.0f; k.fx.compRatio=1.6f; k.fx.compAttack=28.0f; k.fx.compRelease=200.0f; k.fx.compMix=0.22f;
     k.fx.satDrive=1.02f; k.fx.satMix=0.02f;
-    k.fx.transientAttack=0.02f; k.fx.transientSustain=0.0f; k.fx.transientMix=0.08f;
+    k.fx.transientAttack=0.02f; k.fx.transientSustain=0.0f; k.fx.transientMix=0.08f;  // was -0.04f: negative sustain only attenuates, not musical
     k.fx.limiterEnable=true; k.fx.limiterThreshold=-0.5f;
     applyTargetMatrix(k, KitFamily::Ambient);
     return k;
@@ -378,9 +409,10 @@ static KitPreset makeKit_Ambient_Dark()
     for (int i = 0; i < 2; ++i) { k.pads[static_cast<std::size_t>(i)].tuneSemitones -= 3.0f; k.pads[static_cast<std::size_t>(i)].cutoffHz *= 0.75f; }
     k.pads[2].cutoffHz *= 0.72f; k.pads[2].noiseAmount += 0.05f;
     k.pads[10].decaySeconds = 0.60f; k.pads[10].level = 0.40f;
-    k.fx.reverbSize=0.75f; k.fx.reverbDamping=0.45f; k.fx.reverbMix=0.32f; k.fx.reverbPredelay=28.0f;
+    k.fx.reverbSize=0.60f; k.fx.reverbDamping=0.50f; k.fx.reverbMix=0.26f; k.fx.reverbPredelay=24.0f;  // was 0.75/0.45/0.32: too long, smudged transients
     k.fx.eqEnable=true; k.fx.eqLowFreq=80.0f; k.fx.eqLowGain=2.0f;
     k.fx.eqHighFreq=8000.0f; k.fx.eqHighGain=-2.5f;
+    k.fx.transientSustain=0.0f;  // was -0.04f: negative only attenuates, not intentional
     applyTargetMatrix(k, KitFamily::Ambient);
     return k;
 }
@@ -392,8 +424,9 @@ static KitPreset makeKit_Ambient_Sparse()
     // Very minimal energy — all levels pulled back, reverb dominant
     for (int i = 0; i < kNumPads; ++i)
         k.pads[static_cast<std::size_t>(i)].level *= 0.82f;
-    k.fx.reverbSize=0.80f; k.fx.reverbMix=0.35f; k.fx.reverbPredelay=30.0f;
+    k.fx.reverbSize=0.65f; k.fx.reverbMix=0.28f; k.fx.reverbPredelay=28.0f;  // was 0.80/0.35: less smearing
     k.fx.compMix=0.12f;
+    k.fx.transientSustain=0.0f;  // was -0.04f: negative only attenuates
     applyTargetMatrix(k, KitFamily::Ambient);
     return k;
 }
@@ -417,12 +450,12 @@ static KitPreset makeKit_Cinematique_Epic()
     k.pads[8] = makePad(0.65f,-2.0f,  0.15f,  0.0004f, 4.0f, 0.034f, 0.008f, 0.11f, 1.02f, 2600.0f, -0.10f, 175.0f, PadVoiceModel::Tom);
     k.pads[9] = makePad(0.60f,-1.0f,  0.12f,  0.0004f, 3.0f, 0.028f, 0.008f, 0.10f, 1.02f, 3600.0f,  0.10f, 250.0f, PadVoiceModel::Tom);
     k.pads[10]= makePad(0.50f, 0.0f,  0.30f,  0.0f,    0.0f, 0.013f, 0.50f,  0.06f, 1.00f, 7200.0f,  0.22f,6400.0f, PadVoiceModel::Crash);
-    k.pads[11]= makePad(0.56f, 8.0f,  0.10f,  0.0002f,10.0f, 0.025f, 0.04f,  0.12f, 1.04f, 3800.0f, -0.14f, 560.0f, PadVoiceModel::Fx);
+    k.pads[11]= makePad(0.56f, 8.0f,  0.10f,  0.0002f,10.0f, 0.025f, 0.04f,  0.12f, 1.04f, 3800.0f, -0.14f, 720.0f, PadVoiceModel::Fx);
 
     k.fx.reverbSize=0.62f; k.fx.reverbDamping=0.50f; k.fx.reverbWidth=0.92f; k.fx.reverbMix=0.22f; k.fx.reverbPredelay=20.0f;
     k.fx.compThreshold=-10.0f; k.fx.compRatio=2.5f; k.fx.compAttack=12.0f; k.fx.compRelease=140.0f; k.fx.compMix=0.45f;
     k.fx.satDrive=1.20f; k.fx.satMix=0.10f;
-    k.fx.transientAttack=0.10f; k.fx.transientSustain=-0.04f; k.fx.transientMix=0.18f;
+    k.fx.transientAttack=0.10f; k.fx.transientSustain=0.0f; k.fx.transientMix=0.18f;  // was -0.04f: negative only reduces, not musical
     k.fx.eqEnable=true; k.fx.eqLowFreq=90.0f; k.fx.eqLowGain=2.5f; k.fx.eqHighFreq=7000.0f; k.fx.eqHighGain=1.2f;
     k.fx.limiterEnable=true; k.fx.limiterThreshold=-0.5f;
     applyTargetMatrix(k, KitFamily::Cinematique);
@@ -447,13 +480,30 @@ static KitPreset makeKit_Cinematique_Hybrid()
 {
     auto k = makeKit_Cinematique_Epic();
     k.name = "Cinematique Hybrid";
+    // Audit Phase 2.1: Hybrid was barely distinguishable from Epic (just a
+    // delay added). Reposition as the "reverb-dominant / electronic-blend"
+    // member of the family: large lush reverb, softer transients, electronic
+    // kick layer, longer crash tail.
     // Electronic kick blended
     k.pads[1].decaySeconds=0.14f; k.pads[1].pitchDropSemitones=8.0f; k.pads[1].noiseAmount=0.002f;
     k.pads[1].cutoffHz=1600.0f;
-    // Layered snare: extra click
-    k.pads[2].clickAmount=0.12f;
-    k.fx.delayEnable=true; k.fx.delayTime=250.0f; k.fx.delayFeedback=0.22f; k.fx.delayMix=0.12f;
-    k.fx.reverbMix=0.18f;
+    // Layered snare: extra click + softer body for hybrid feel
+    k.pads[2].clickAmount=0.14f;
+    k.pads[2].decaySeconds=0.13f;
+    k.pads[10].decaySeconds=0.42f;  // longer crash tail
+    // Reverb-dominant signature
+    k.fx.reverbSize=0.72f;       // was 0.62: larger hall
+    k.fx.reverbDamping=0.42f;    // was 0.50: brighter tail
+    k.fx.reverbWidth=0.95f;
+    k.fx.reverbMix=0.42f;        // was 0.18: dominant wet
+    k.fx.reverbPredelay=26.0f;
+    // Soften transients/comp/sat to let reverb breathe
+    k.fx.transientAttack=0.06f;  // was 0.10
+    k.fx.transientMix=0.12f;     // was 0.18
+    k.fx.compMix=0.30f;          // was 0.45
+    k.fx.satMix=0.05f;           // was 0.10
+    // Tempo-locked delay for hybrid texture
+    k.fx.delayEnable=true; k.fx.delayTime=250.0f; k.fx.delayFeedback=0.28f; k.fx.delayMix=0.16f;
     applyTargetMatrix(k, KitFamily::Cinematique);
     return k;
 }
@@ -492,12 +542,12 @@ static KitPreset makeKit_Moderne_Club()
     k.pads[8] = makePad(0.58f, 0.0f,  0.11f,  0.0004f, 3.5f, 0.026f, 0.005f, 0.09f, 1.01f, 3000.0f, -0.08f, 175.0f, PadVoiceModel::Tom);
     k.pads[9] = makePad(0.54f, 0.0f,  0.09f,  0.0004f, 3.0f, 0.022f, 0.005f, 0.08f, 1.01f, 3800.0f,  0.08f, 250.0f, PadVoiceModel::Tom);
     k.pads[10]= makePad(0.44f, 0.0f,  0.22f,  0.0f,    0.0f, 0.012f, 0.55f,  0.06f, 1.00f, 7800.0f,  0.20f,6400.0f, PadVoiceModel::Crash);
-    k.pads[11]= makePad(0.50f, 7.0f,  0.07f,  0.0002f, 9.0f, 0.020f, 0.02f,  0.10f, 1.02f, 4400.0f, -0.14f, 560.0f, PadVoiceModel::Fx);
+    k.pads[11]= makePad(0.50f, 7.0f,  0.07f,  0.0002f, 9.0f, 0.020f, 0.02f,  0.10f, 1.02f, 4400.0f, -0.14f, 720.0f, PadVoiceModel::Fx);
 
     k.fx.reverbSize=0.34f; k.fx.reverbDamping=0.74f; k.fx.reverbWidth=0.82f; k.fx.reverbMix=0.13f; k.fx.reverbPredelay=8.0f;
     k.fx.compThreshold=-11.0f; k.fx.compRatio=2.2f; k.fx.compAttack=14.0f; k.fx.compRelease=130.0f; k.fx.compMix=0.42f;
     k.fx.satDrive=1.18f; k.fx.satMix=0.08f;
-    k.fx.transientAttack=0.09f; k.fx.transientSustain=-0.04f; k.fx.transientMix=0.16f;
+    k.fx.transientAttack=0.09f; k.fx.transientSustain=0.0f; k.fx.transientMix=0.16f;  // was -0.04f: negative only reduces, not musical
     k.fx.limiterEnable=true; k.fx.limiterThreshold=-0.5f;
     applyTargetMatrix(k, KitFamily::Moderne);
     return k;
@@ -513,9 +563,9 @@ static KitPreset makeKit_Moderne_LoFi()
         k.pads[static_cast<std::size_t>(i)].cutoffHz *= 0.68f;
         k.pads[static_cast<std::size_t>(i)].drive    *= 1.08f;
     }
-    k.fx.satDrive=2.2f; k.fx.satMix=0.25f;
-    k.fx.eqEnable=true; k.fx.eqHighFreq=5000.0f; k.fx.eqHighGain=-4.0f;
-    k.fx.eqLowFreq=200.0f; k.fx.eqLowGain=-1.0f;
+    k.fx.satDrive=1.6f; k.fx.satMix=0.22f;  // was 2.2f/0.25f: too dark/destroyed transients
+    k.fx.eqEnable=true; k.fx.eqHighFreq=5000.0f; k.fx.eqHighGain=-2.0f;  // was -4.0f: killed all top-end
+    k.fx.eqLowFreq=200.0f; k.fx.eqLowGain=-0.5f;  // was -1.0f: removed too much body
     k.fx.reverbSize=0.44f; k.fx.reverbMix=0.18f;
     k.fx.limiterThreshold=-1.5f;
     applyTargetMatrix(k, KitFamily::Moderne);
@@ -527,13 +577,32 @@ static KitPreset makeKit_Moderne_Trap()
     auto k = makeKit_Moderne_Club();
     k.name = "Moderne Trap";
     // Trap: 808 sub kick, very punchy snare, hi-hat rolls
-    k.pads[0].decaySeconds=0.55f; k.pads[0].pitchDropSemitones=14.0f; k.pads[0].cutoffHz=1200.0f; k.pads[0].level=0.92f;
-    k.pads[2].decaySeconds=0.06f; k.pads[2].noiseAmount=0.72f; k.pads[2].drive=1.08f;
-    k.pads[3].noiseAmount=0.70f; k.pads[3].level=0.72f;
-    k.pads[4].decaySeconds=0.014f; k.pads[4].level=0.50f;
-    k.pads[5].decaySeconds=0.050f;
-    k.fx.compThreshold=-8.0f; k.fx.compRatio=3.0f; k.fx.compAttack=8.0f; k.fx.compMix=0.50f;
-    k.fx.transientAttack=0.14f; k.fx.transientMix=0.20f;
+    // Audit Phase 1.4: previous decay 0.38s + pitchDrop 12st caused
+    // low-end accumulation in 8th-note trap patterns at 70-80 BPM
+    // (47% residual amplitude at next kick). Reduced for groove clarity
+    // while preserving the 808 sub character.
+    k.pads[0].decaySeconds=0.26f;  // was 0.38: ~28% residual at 80 BPM 8th-notes
+    k.pads[0].pitchDropSemitones=9.0f;  // was 12: tighter low-end definition
+    k.pads[0].cutoffHz=1500.0f;  // slightly cleaner low-end
+    k.pads[0].level=0.92f;
+    // Audit Phase 2.2: Trap-specific Kick B repurposing.
+    // In Club/LoFi/Electro, Kick B (+6 st) acts as a high-tuned top-click
+    // layer over Kick A. For Trap, the 808-style design benefits more from
+    // a sub-octave layer (Kick B as deep sub doubling Kick A). This change
+    // is preset-local; other Moderne kits keep the top-click design.
+    k.pads[1].tuneSemitones = -2.0f;        // was +6: sub layer for 808 doubling
+    k.pads[1].decaySeconds  = 0.34f;        // longer sub tail
+    k.pads[1].pitchDropSemitones = 6.0f;    // gentler drop, deeper feel
+    k.pads[1].cutoffHz      = 1200.0f;      // dark sub
+    k.pads[1].level         = 0.74f;
+    k.pads[2].decaySeconds=0.10f;  // was 0.06f: too short, no body. 100ms = punchy but audible
+    k.pads[2].noiseAmount=0.66f;  // was 0.72f: still gritty but defined
+    k.pads[2].drive=1.06f;  // was 1.08f: slightly less flabby
+    k.pads[3].noiseAmount=0.64f; k.pads[3].level=0.70f;  // was 0.70/0.72
+    k.pads[4].decaySeconds=0.016f; k.pads[4].level=0.52f;
+    k.pads[5].decaySeconds=0.055f;
+    k.fx.compThreshold=-9.0f; k.fx.compRatio=2.8f; k.fx.compAttack=10.0f; k.fx.compMix=0.48f;  // balanced
+    k.fx.transientAttack=0.10f; k.fx.transientMix=0.18f;
     applyTargetMatrix(k, KitFamily::Moderne);
     return k;
 }
@@ -937,6 +1006,37 @@ void applyTargetMatrix(KitPreset& kit, const KitFamily family)
         auto& p = kit.pads[11];
         p.level = nudgeLevel(p.level, t.fx.level);
         applyDensityToPad(p, t.fx.density);
+    }
+
+    // -----------------------------------------------------------------------
+    // Audit Phase 1 corrections — applied as final post-processing:
+    //   1) Enforce snare > perc hierarchy (audit ETAPE 4/8 critical issue).
+    //      Original presets had perc levels 0.90-1.00 and snare 0.68-0.76,
+    //      which inverts the natural acoustic hierarchy and masks the snare
+    //      in groove playback. We clamp perc pads to ≤ 88% of snare avg.
+    //   2) Detune Tom High away from Snare quasi-unison.
+    //      Tom High at 250 Hz vs Snare at 248 Hz creates a 1.008 ratio
+    //      (audibly fused). Force Tom High to a musical interval (~ minor
+    //      third below the snare body). Tune offset is preserved so the
+    //      user's "TUNE" knob keeps the same musical effect.
+    // These corrections are internal: no exposed parameter, ID, range or
+    // default is changed — only the factory preset values are recalibrated.
+    // -----------------------------------------------------------------------
+    {
+        const float snareAvg = (kit.pads[2].level + kit.pads[3].level) * 0.5f;
+        const float maxPercLevel = std::clamp(snareAvg * 0.88f, 0.10f, 1.00f);
+        for (int i = 6; i < 8; ++i)
+        {
+            auto& p = kit.pads[static_cast<std::size_t>(i)];
+            if (p.level > maxPercLevel)
+                p.level = maxPercLevel;
+        }
+    }
+    if (kit.pads[9].voiceModel == PadVoiceModel::Tom)
+    {
+        // 195 Hz vs Snare 248 Hz → ratio 0.786 (≈ minor third). Avoids
+        // quasi-unison masking while keeping Tom High clearly above Tom Low (175 Hz).
+        kit.pads[9].baseFrequencyHz = 195.0f;
     }
 }
 

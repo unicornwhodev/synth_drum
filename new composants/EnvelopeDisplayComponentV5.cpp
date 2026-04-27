@@ -41,7 +41,7 @@ void EnvelopeDisplayComponentV5::paint (juce::Graphics& g)
     fill.closeSubPath();
 
     juce::ColourGradient glow (UIThemeV5::accentGlow().withAlpha (0.74f), p1.x, p1.y,
-                               juce::Colour::transparentBlack, plot.getCentreX(), plot.getBottom(), false);
+                               juce::Colours::transparentBlack, plot.getCentreX(), plot.getBottom(), false);
     g.setGradientFill (glow);
     g.fillPath (fill);
 

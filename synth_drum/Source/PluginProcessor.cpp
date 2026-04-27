@@ -2320,6 +2320,15 @@ void DrumSynthAudioProcessor::queuePadTrigger(const int padIndex, const float ve
         triggerFifoBuffer[static_cast<std::size_t>(scope.startIndex2)] = { padIndex, juce::jlimit(0.0f, 1.0f, velocity), 0 };
 }
 
+float DrumSynthAudioProcessor::consumePadTriggerActivity(int padIndex) noexcept
+{
+    if (padIndex < 0 || padIndex >= mds::kNumPads)
+        return 0.0f;
+    // Atomic exchange: hand the latest stamped value to the editor and reset
+    // to zero so we only report each trigger once.
+    return padTriggerActivity[static_cast<std::size_t>(padIndex)].exchange(0.0f, std::memory_order_relaxed);
+}
+
 void DrumSynthAudioProcessor::renderActiveVoicesForRange(juce::AudioBuffer<float>& buffer,
                                                          const int startSample,
                                                          const int numSamples)
@@ -2538,6 +2547,15 @@ void DrumSynthAudioProcessor::triggerPadNow(const int padIndex, const float velo
     if (preparedSampleRate <= 0.0)
         return;
 
+    // Audit Phase 4.4a: stamp pad activity for the editor mini-VU.
+    // Stored as max() so concurrent triggers don't lose the loudest hit.
+    {
+        auto& slot = padTriggerActivity[static_cast<std::size_t>(padIndex)];
+        float prev = slot.load(std::memory_order_relaxed);
+        const float v = juce::jlimit(0.0f, 1.5f, velocity);
+        while (v > prev && !slot.compare_exchange_weak(prev, v, std::memory_order_relaxed)) {}
+    }
+
     const auto voiceModel = mds::getPadVoiceModel(padIndex);
     const auto chokeGroup = getChokeGroupForPad(padIndex);
     const int fadeOutLen = static_cast<int>(preparedSampleRate * 0.005); // 5ms crossfade
@@ -2552,6 +2570,29 @@ void DrumSynthAudioProcessor::triggerPadNow(const int padIndex, const float velo
             {
                 av.fadeOutSamples = fadeOutLen;
                 av.fadeOutGain = 1.0f;
+            }
+        }
+    }
+
+    // Audit Phase 3.3: anti-overlap kick ducking.
+    // When a new Kick (model Kick) triggers and a previous kick voice is still
+    // ringing with significant amplitude, dim the previous voice by -3 dB
+    // (×0.707) instantaneously. Prevents low-end accumulation in fast kick
+    // patterns (typical 808 + dub-step / trap rolls). Threshold 0.30 is the
+    // amplitude envelope value, not the raw sample peak. No exposed parameter.
+    if (voiceModel == mds::PadVoiceModel::Kick)
+    {
+        constexpr float kAntiOverlapThreshold = 0.30f;
+        constexpr float kAntiOverlapDuckGain  = 0.707f;  // -3 dB
+        for (int i = 0; i < activeVoiceCount; ++i)
+        {
+            auto& av = activeVoices[static_cast<std::size_t>(i)];
+            if (av.voiceModel == mds::PadVoiceModel::Kick
+                && av.fadeOutSamples <= 0
+                && av.voice != nullptr
+                && av.voice->getCurrentAmplitude() > kAntiOverlapThreshold)
+            {
+                av.voice->duckAmplitude(kAntiOverlapDuckGain);
             }
         }
     }

@@ -82,6 +82,15 @@ void DrumVoice::start(const PadSettings& settingsToUse, const float noteVelocity
 
     // NOTE: velocity is already applied in render() via `sample *= velocity * settings.level`,
     // so we do NOT scale clickAmount/noiseAmount by velocity here (that would double-apply it).
+    // Audit Phase 3.1: EXCEPTION — for Snare/Hat we DO apply an additional non-linear
+    // velocity curve to clickAmount only. The percussive transient ("click") needs to be
+    // perceptually more dynamic than the body: at vel=1.0 click is unchanged (×1.0),
+    // at vel=0.0 click is reduced to 40% of nominal. Combined with the linear velocity
+    // factor in render(), the effective click contribution scales as vel × (0.4 + 0.6×vel),
+    // i.e. quadratic-ish, matching how acoustic snares/hats behave: soft hits = mostly body,
+    // hard hits = body + sharp click. This is the click-only curve, not a double-apply.
+    if (settings.voiceModel == PadVoiceModel::Snare || settings.voiceModel == PadVoiceModel::Hat)
+        settings.clickAmount *= (0.4f + 0.6f * velocity);
     settings.clickAmount = juce::jlimit(0.0f, 1.0f, settings.clickAmount);
     settings.noiseAmount = juce::jlimit(0.0f, 1.0f, settings.noiseAmount);
     if (settings.pitchDropSemitones > k::kPitchDropVelThreshold)
@@ -140,34 +149,34 @@ void DrumVoice::start(const PadSettings& settingsToUse, const float noteVelocity
     stereoPhase = random.nextFloat();
     stereoPhaseInc = 0.0f;
     if (settings.voiceModel == PadVoiceModel::Kick)
-        outputTrim = 0.94f;
+        outputTrim = 0.94f;  // kick: +4% headroom (foundational element)
     else if (settings.voiceModel == PadVoiceModel::Snare)
-        outputTrim = 0.84f;
+        outputTrim = 0.90f;  // was 0.84f: +6% to normalize with kick
     else if (settings.voiceModel == PadVoiceModel::Clap)
     {
-        outputTrim = 0.82f;
+        outputTrim = 0.90f;  // was 0.82f: +8% to normalize
         stereoSideAmount = 0.16f;
         stereoPhaseInc = (28.0f + random.nextFloat() * 36.0f) / sr;
     }
     else if (settings.voiceModel == PadVoiceModel::Hat)
     {
-        outputTrim = 0.74f;
+        outputTrim = 0.90f;  // was 0.74f: +16% to normalize (major fix)
         stereoSideAmount = 0.05f;
         stereoPhaseInc = (18.0f + random.nextFloat() * 18.0f) / sr;
     }
     else if (settings.voiceModel == PadVoiceModel::PercWood || settings.voiceModel == PadVoiceModel::PercMetal)
-        outputTrim = 0.86f;
+        outputTrim = 0.90f;  // was 0.86f: +4% to normalize
     else if (settings.voiceModel == PadVoiceModel::Tom)
-        outputTrim = 0.88f;
+        outputTrim = 0.90f;  // was 0.88f: +2% to normalize
     else if (settings.voiceModel == PadVoiceModel::Crash)
     {
-        outputTrim = 0.70f;
+        outputTrim = 0.90f;  // was 0.70f: +20% to normalize (major fix)
         stereoSideAmount = 0.12f;
         stereoPhaseInc = (12.0f + random.nextFloat() * 18.0f) / sr;
     }
     else if (settings.voiceModel == PadVoiceModel::Fx)
     {
-        outputTrim = 0.78f;
+        outputTrim = 0.90f;  // was 0.78f: +12% to normalize
         stereoSideAmount = 0.09f;
         stereoPhaseInc = (16.0f + random.nextFloat() * 22.0f) / sr;
     }

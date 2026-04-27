@@ -98,8 +98,8 @@ constexpr std::array<PadCharacteristics, kNumPads> kPadCharacteristics = {{
     { PadVoiceModel::PercMetal, DrumFamily::Perc,   SynthesisMode::Modal,      650.0f,  0, "Perc 2"     },
     { PadVoiceModel::Tom,       DrumFamily::Tom,    SynthesisMode::Tonal,      175.0f,  0, "Tom Low"    },
     { PadVoiceModel::Tom,       DrumFamily::Tom,    SynthesisMode::Tonal,      250.0f,  0, "Tom High"   },
-    { PadVoiceModel::Crash,     DrumFamily::Crash,  SynthesisMode::Metallic,  6400.0f,  0, "Crash"      },
-    { PadVoiceModel::Fx,        DrumFamily::FX,     SynthesisMode::FM,         560.0f,  0, "FX"         },
+    { PadVoiceModel::Crash,     DrumFamily::Crash,  SynthesisMode::Metallic,  6400.0f,  2, "Crash"      },
+    { PadVoiceModel::Fx,        DrumFamily::FX,     SynthesisMode::FM,         720.0f,  0, "FX"         },  // was 560: too close to Perc2 at 650Hz, now a clear fifth apart
 }};
 
 // =========================================================================
