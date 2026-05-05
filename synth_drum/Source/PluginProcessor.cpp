@@ -43,6 +43,10 @@ constexpr const char* kBodyToneSuffix = "body_tone";
 constexpr const char* kModalRingSuffix = "modal_ring";
 constexpr const char* kFmIndexSuffix = "fm_index";
 constexpr const char* kFmSweepSuffix = "fm_sweep";
+// Audit Phase 5: per-pad parameter suffixes
+constexpr const char* kVelToClickSuffix = "vel_to_click";  // D1
+constexpr const char* kRevSendSuffix    = "rev_send";       // D3
+constexpr const char* kDlySendSuffix    = "dly_send";       // D3
 
 constexpr const char* kReverbSize      = "reverb_size";
 constexpr const char* kReverbDamping   = "reverb_damping";
@@ -483,6 +487,10 @@ void sanitizeParameterState(juce::AudioProcessorValueTreeState& parameters)
         sanitizeById(DrumSynthAudioProcessor::makePadParamId(pad, kModalRingSuffix));
         sanitizeById(DrumSynthAudioProcessor::makePadParamId(pad, kFmIndexSuffix));
         sanitizeById(DrumSynthAudioProcessor::makePadParamId(pad, kFmSweepSuffix));
+        // Audit Phase 5 D1/D3: clamp new per-pad params on state load.
+        sanitizeById(DrumSynthAudioProcessor::makePadParamId(pad, kVelToClickSuffix));
+        sanitizeById(DrumSynthAudioProcessor::makePadParamId(pad, kRevSendSuffix));
+        sanitizeById(DrumSynthAudioProcessor::makePadParamId(pad, kDlySendSuffix));
         sanitizeById(DrumSynthAudioProcessor::makePadParamId(pad, kPadOutputSuffix));
     }
 }
@@ -537,6 +545,18 @@ void applyPresetMigrationDefaults(juce::AudioProcessorValueTreeState& parameters
         setDefaultIfMissing(kLfoWave);
         setDefaultIfMissing(kHumanizeTiming);
         setDefaultIfMissing(kHumanizeLevel);
+    }
+
+    // Audit Phase 5 D1/D3: ensure new per-pad parameters get their factory
+    // defaults when loading older presets (vel_to_click / rev_send / dly_send).
+    if (savedVersion < 6)
+    {
+        for (int pad = 0; pad < mds::kNumPads; ++pad)
+        {
+            setDefaultIfMissing(DrumSynthAudioProcessor::makePadParamId(pad, kVelToClickSuffix));
+            setDefaultIfMissing(DrumSynthAudioProcessor::makePadParamId(pad, kRevSendSuffix));
+            setDefaultIfMissing(DrumSynthAudioProcessor::makePadParamId(pad, kDlySendSuffix));
+        }
     }
 }
 
@@ -1122,6 +1142,25 @@ juce::AudioProcessorValueTreeState::ParameterLayout DrumSynthAudioProcessor::cre
             juce::NormalisableRange<float>(0.0f, 1.0f, 0.0001f),
             defaults.fmSweep));
 
+        // Audit Phase 5 D1: per-pad velocity-to-click sensitivity.
+        layout.add(std::make_unique<juce::AudioParameterFloat>(
+            makePadParamId(pad, kVelToClickSuffix),
+            prefix + "Vel To Click",
+            juce::NormalisableRange<float>(0.0f, 1.0f, 0.0001f),
+            defaults.velocityToClick));
+
+        // Audit Phase 5 D3: per-pad FX sends.
+        layout.add(std::make_unique<juce::AudioParameterFloat>(
+            makePadParamId(pad, kRevSendSuffix),
+            prefix + "Reverb Send",
+            juce::NormalisableRange<float>(0.0f, 1.0f, 0.0001f),
+            defaults.reverbSend));
+        layout.add(std::make_unique<juce::AudioParameterFloat>(
+            makePadParamId(pad, kDlySendSuffix),
+            prefix + "Delay Send",
+            juce::NormalisableRange<float>(0.0f, 1.0f, 0.0001f),
+            defaults.delaySend));
+
         const auto defaultOutputChoice = juce::jlimit(0, kNumAuxOutputs, pad + 1);
         layout.add(std::make_unique<juce::AudioParameterChoice>(
             makePadParamId(pad, kPadOutputSuffix),
@@ -1205,6 +1244,16 @@ void DrumSynthAudioProcessor::prepareToPlay(const double sampleRate, const int s
     fxDelay.prepare(preparedSampleRate, samplesPerBlock);
     fxLimiter.prepare(preparedSampleRate);
 
+    // Audit Phase 5 D3: dedicated send instances + scratch buffers.
+    sendReverb.prepare(preparedSampleRate, samplesPerBlock);
+    sendDelay.prepare(preparedSampleRate, samplesPerBlock);
+    const int scratchCh = juce::jmax(2, static_cast<int>(spec.numChannels));
+    reverbSendBuffer.setSize(scratchCh, static_cast<int>(spec.maximumBlockSize), false, true, true);
+    delaySendBuffer.setSize(scratchCh, static_cast<int>(spec.maximumBlockSize), false, true, true);
+    voiceScratchBuffer.setSize(scratchCh, static_cast<int>(spec.maximumBlockSize), false, true, true);
+    currentPadReverbSend.fill(0.0f);
+    currentPadDelaySend.fill(0.0f);
+
     fxDryBuffer.setSize(static_cast<int>(spec.numChannels), static_cast<int>(spec.maximumBlockSize), false, true, true);
     transientFastEnv = { 0.0f, 0.0f };
     transientSlowEnv = { 0.0f, 0.0f };
@@ -1224,6 +1273,9 @@ void DrumSynthAudioProcessor::releaseResources()
     }
     activeVoiceCount = 0;
     fxDryBuffer.setSize(0, 0);
+    reverbSendBuffer.setSize(0, 0);
+    delaySendBuffer.setSize(0, 0);
+    voiceScratchBuffer.setSize(0, 0);
     saturatorPrevSample = { 0.0f, 0.0f };
     resetRuntimeTelemetry();
 }
@@ -1273,6 +1325,23 @@ void DrumSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juc
     const auto outputBusCount = getBusCount(false);
     for (int busIndex = 0; busIndex < outputBusCount; ++busIndex)
         getBusBuffer(buffer, false, busIndex).clear();
+
+    // Audit Phase 5 D3: snapshot per-pad send amounts for this block, and
+    // clear the dedicated send scratch buses. Done once per block so the
+    // per-voice loop can read sends in O(1).
+    for (int p = 0; p < mds::kNumPads; ++p)
+    {
+        currentPadReverbSend[(std::size_t) p] = clamp01(getParamValue(makePadParamId(p, kRevSendSuffix)));
+        currentPadDelaySend [(std::size_t) p] = clamp01(getParamValue(makePadParamId(p, kDlySendSuffix)));
+    }
+    if (reverbSendBuffer.getNumChannels() > 0)
+        reverbSendBuffer.clear(0, blockSamples);
+    if (reverbSendBuffer.getNumChannels() > 1)
+        reverbSendBuffer.clear(1, blockSamples);
+    if (delaySendBuffer.getNumChannels() > 0)
+        delaySendBuffer.clear(0, blockSamples);
+    if (delaySendBuffer.getNumChannels() > 1)
+        delaySendBuffer.clear(1, blockSamples);
 
     triggerBatch.clear();
 
@@ -1433,6 +1502,9 @@ void DrumSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juc
         processGlobalChorus(mainBuffer);
         processGlobalDelay(mainBuffer);
         processGlobalReverb(mainBuffer);
+        // Audit Phase 5 D3: mix the per-pad send returns into the master bus
+        // before the output gain stage so they obey the master volume.
+        processPadSends(mainBuffer);
         processGlobalLfo(mainBuffer);
 
         const auto targetOutputGain = juce::Decibels::decibelsToGain(getParamValue(kOutputGain));
@@ -1790,6 +1862,10 @@ void DrumSynthAudioProcessor::applyFactoryPreset(const int presetIndex)
         setParamValue(makePadParamId(pad, kModalRingSuffix), settings.modalRing);
         setParamValue(makePadParamId(pad, kFmIndexSuffix), settings.fmIndex);
         setParamValue(makePadParamId(pad, kFmSweepSuffix), settings.fmSweep);
+        // Audit Phase 5 D1/D3: factory presets feed the new per-pad params.
+        setParamValue(makePadParamId(pad, kVelToClickSuffix), settings.velocityToClick);
+        setParamValue(makePadParamId(pad, kRevSendSuffix),    settings.reverbSend);
+        setParamValue(makePadParamId(pad, kDlySendSuffix),    settings.delaySend);
         setParamValue(makePadParamId(pad, kPadOutputSuffix),
                       static_cast<float>(preset.outputBuses[static_cast<std::size_t>(pad)]));
     }
@@ -1909,6 +1985,10 @@ bool DrumSynthAudioProcessor::saveFactoryPreset(const int presetIndex)
         s.modalRing           = getParamValue(makePadParamId(pad, kModalRingSuffix));
         s.fmIndex             = getParamValue(makePadParamId(pad, kFmIndexSuffix));
         s.fmSweep             = getParamValue(makePadParamId(pad, kFmSweepSuffix));
+        // Audit Phase 5 D1/D3.
+        s.velocityToClick     = getParamValue(makePadParamId(pad, kVelToClickSuffix));
+        s.reverbSend          = getParamValue(makePadParamId(pad, kRevSendSuffix));
+        s.delaySend           = getParamValue(makePadParamId(pad, kDlySendSuffix));
         preset.outputBuses[static_cast<std::size_t>(pad)] = juce::jlimit(
             0, kNumAuxOutputs,
             static_cast<int>(std::round(getParamValue(makePadParamId(pad, kPadOutputSuffix)))));
@@ -1993,6 +2073,10 @@ bool DrumSynthAudioProcessor::saveFactoryPreset(const int presetIndex)
         padXml->setAttribute("modalRing",   static_cast<double>(s.modalRing));
         padXml->setAttribute("fmIndex",     static_cast<double>(s.fmIndex));
         padXml->setAttribute("fmSweep",     static_cast<double>(s.fmSweep));
+        // Audit Phase 5 D1/D3.
+        padXml->setAttribute("velToClick",  static_cast<double>(s.velocityToClick));
+        padXml->setAttribute("revSend",     static_cast<double>(s.reverbSend));
+        padXml->setAttribute("dlySend",     static_cast<double>(s.delaySend));
         padXml->setAttribute("output",      preset.outputBuses[static_cast<std::size_t>(pad)]);
     }
 
@@ -2043,6 +2127,10 @@ void DrumSynthAudioProcessor::loadFactoryOverrides()
             s.modalRing           = clamp01(static_cast<float>(padXml->getDoubleAttribute("modalRing", s.modalRing)));
             s.fmIndex             = clamp01(static_cast<float>(padXml->getDoubleAttribute("fmIndex", s.fmIndex)));
             s.fmSweep             = clamp01(static_cast<float>(padXml->getDoubleAttribute("fmSweep", s.fmSweep)));
+            // Audit Phase 5 D1/D3.
+            s.velocityToClick     = clamp01(static_cast<float>(padXml->getDoubleAttribute("velToClick", s.velocityToClick)));
+            s.reverbSend          = clamp01(static_cast<float>(padXml->getDoubleAttribute("revSend",    s.reverbSend)));
+            s.delaySend           = clamp01(static_cast<float>(padXml->getDoubleAttribute("dlySend",    s.delaySend)));
             preset.outputBuses[static_cast<std::size_t>(padIdx)] = juce::jlimit(
                 0, kNumAuxOutputs, padXml->getIntAttribute("output", preset.outputBuses[static_cast<std::size_t>(padIdx)]));
         }
@@ -2337,6 +2425,14 @@ void DrumSynthAudioProcessor::renderActiveVoicesForRange(juce::AudioBuffer<float
         return;
 
     const auto outputBusCount = getBusCount(false);
+    // Audit Phase 5 D3: detect whether any pad currently has a non-zero send.
+    // When all sends are zero we can skip the per-voice scratch path entirely
+    // (no behavioural change vs. the pre-D3 code; tests rely on this).
+    bool anySend = false;
+    for (int p = 0; p < mds::kNumPads && ! anySend; ++p)
+        anySend = (currentPadReverbSend[(std::size_t) p] > 0.0001f
+                || currentPadDelaySend[(std::size_t) p]  > 0.0001f);
+
     for (int i = 0; i < activeVoiceCount; ++i)
     {
         auto& av = activeVoices[static_cast<std::size_t>(i)];
@@ -2350,20 +2446,73 @@ void DrumSynthAudioProcessor::renderActiveVoicesForRange(juce::AudioBuffer<float
             busIndex = 0;
 
         auto busBuffer = getBusBuffer(buffer, false, busIndex);
-        av.voice->render(busBuffer, startSample, numSamples);
 
-        if (av.fadeOutSamples > 0)
+        const float revSend = (av.padIndex >= 0 && av.padIndex < mds::kNumPads)
+                                ? currentPadReverbSend[(std::size_t) av.padIndex] : 0.0f;
+        const float dlySend = (av.padIndex >= 0 && av.padIndex < mds::kNumPads)
+                                ? currentPadDelaySend[(std::size_t) av.padIndex] : 0.0f;
+        const bool useScratch = anySend
+                                && voiceScratchBuffer.getNumSamples() >= startSample + numSamples
+                                && voiceScratchBuffer.getNumChannels() >= busBuffer.getNumChannels();
+
+        if (useScratch)
         {
-            for (int s = 0; s < numSamples && av.fadeOutSamples > 0; ++s, --av.fadeOutSamples)
-            {
-                av.fadeOutGain -= 1.0f / static_cast<float>(
-                    static_cast<int>(preparedSampleRate * 0.005));
-                if (av.fadeOutGain < 0.0f)
-                    av.fadeOutGain = 0.0f;
+            // Render into scratch then sum into destination bus (dry) and
+            // optionally into the global send buses.
+            for (int ch = 0; ch < busBuffer.getNumChannels(); ++ch)
+                voiceScratchBuffer.clear(ch, startSample, numSamples);
 
-                const auto sampleIndex = startSample + s;
-                for (int ch = 0; ch < busBuffer.getNumChannels(); ++ch)
-                    busBuffer.getWritePointer(ch)[sampleIndex] *= av.fadeOutGain;
+            av.voice->render(voiceScratchBuffer, startSample, numSamples);
+
+            if (av.fadeOutSamples > 0)
+            {
+                for (int s = 0; s < numSamples && av.fadeOutSamples > 0; ++s, --av.fadeOutSamples)
+                {
+                    av.fadeOutGain -= 1.0f / static_cast<float>(
+                        static_cast<int>(preparedSampleRate * 0.005));
+                    if (av.fadeOutGain < 0.0f)
+                        av.fadeOutGain = 0.0f;
+
+                    const auto sampleIndex = startSample + s;
+                    for (int ch = 0; ch < busBuffer.getNumChannels(); ++ch)
+                        voiceScratchBuffer.getWritePointer(ch)[sampleIndex] *= av.fadeOutGain;
+                }
+            }
+
+            for (int ch = 0; ch < busBuffer.getNumChannels(); ++ch)
+                busBuffer.addFrom(ch, startSample, voiceScratchBuffer, ch, startSample, numSamples);
+
+            // Only tap sends from voices routed to the master bus, so the
+            // global wet returns mix into the master output (not aux).
+            if (busIndex == 0 && reverbSendBuffer.getNumSamples() >= startSample + numSamples)
+            {
+                if (revSend > 0.0001f)
+                    for (int ch = 0; ch < juce::jmin(2, busBuffer.getNumChannels()); ++ch)
+                        reverbSendBuffer.addFrom(ch, startSample, voiceScratchBuffer,
+                                                 ch, startSample, numSamples, revSend);
+                if (dlySend > 0.0001f)
+                    for (int ch = 0; ch < juce::jmin(2, busBuffer.getNumChannels()); ++ch)
+                        delaySendBuffer.addFrom(ch, startSample, voiceScratchBuffer,
+                                                ch, startSample, numSamples, dlySend);
+            }
+        }
+        else
+        {
+            av.voice->render(busBuffer, startSample, numSamples);
+
+            if (av.fadeOutSamples > 0)
+            {
+                for (int s = 0; s < numSamples && av.fadeOutSamples > 0; ++s, --av.fadeOutSamples)
+                {
+                    av.fadeOutGain -= 1.0f / static_cast<float>(
+                        static_cast<int>(preparedSampleRate * 0.005));
+                    if (av.fadeOutGain < 0.0f)
+                        av.fadeOutGain = 0.0f;
+
+                    const auto sampleIndex = startSample + s;
+                    for (int ch = 0; ch < busBuffer.getNumChannels(); ++ch)
+                        busBuffer.getWritePointer(ch)[sampleIndex] *= av.fadeOutGain;
+                }
             }
         }
     }
@@ -2466,6 +2615,10 @@ mds::PadSettings DrumSynthAudioProcessor::snapshotPadSettings(const int padIndex
     settings.modalRing = getParamValue(makePadParamId(padIndex, kModalRingSuffix));
     settings.fmIndex = getParamValue(makePadParamId(padIndex, kFmIndexSuffix));
     settings.fmSweep = getParamValue(makePadParamId(padIndex, kFmSweepSuffix));
+    // Audit Phase 5 D1/D3.
+    settings.velocityToClick = getParamValue(makePadParamId(padIndex, kVelToClickSuffix));
+    settings.reverbSend      = getParamValue(makePadParamId(padIndex, kRevSendSuffix));
+    settings.delaySend       = getParamValue(makePadParamId(padIndex, kDlySendSuffix));
     settings.baseFrequencyHz = mds::getPadBaseFrequency(padIndex);
     settings.voiceModel = mds::getPadVoiceModel(padIndex);
 
@@ -2842,6 +2995,10 @@ void DrumSynthAudioProcessor::applyFactoryPadPreset(const int padIndex, const in
     setParamValue(makePadParamId(padIndex, kModalRingSuffix), s.modalRing);
     setParamValue(makePadParamId(padIndex, kFmIndexSuffix), s.fmIndex);
     setParamValue(makePadParamId(padIndex, kFmSweepSuffix), s.fmSweep);
+    // Audit Phase 5 D1/D3.
+    setParamValue(makePadParamId(padIndex, kVelToClickSuffix), s.velocityToClick);
+    setParamValue(makePadParamId(padIndex, kRevSendSuffix),    s.reverbSend);
+    setParamValue(makePadParamId(padIndex, kDlySendSuffix),    s.delaySend);
     currentPadPresetIndices[static_cast<std::size_t>(padIndex)] = presetIndex;
 }
 
@@ -2895,6 +3052,10 @@ bool DrumSynthAudioProcessor::saveUserPadPreset(const int padIndex, const juce::
     root->setAttribute("modalRing", static_cast<double>(getParamValue(makePadParamId(padIndex, kModalRingSuffix))));
     root->setAttribute("fmIndex", static_cast<double>(getParamValue(makePadParamId(padIndex, kFmIndexSuffix))));
     root->setAttribute("fmSweep", static_cast<double>(getParamValue(makePadParamId(padIndex, kFmSweepSuffix))));
+    // Audit Phase 5 D1/D3.
+    root->setAttribute("velToClick", static_cast<double>(getParamValue(makePadParamId(padIndex, kVelToClickSuffix))));
+    root->setAttribute("revSend",    static_cast<double>(getParamValue(makePadParamId(padIndex, kRevSendSuffix))));
+    root->setAttribute("dlySend",    static_cast<double>(getParamValue(makePadParamId(padIndex, kDlySendSuffix))));
 
     std::unique_ptr<juce::XmlElement> xml(root);
     return xml->writeTo(file);
@@ -2931,6 +3092,10 @@ bool DrumSynthAudioProcessor::loadUserPadPreset(const int padIndex, const juce::
     setParamValue(makePadParamId(padIndex, kModalRingSuffix), clamp01(getF("modalRing", 0.5f, 0.0f, 1.0f)));
     setParamValue(makePadParamId(padIndex, kFmIndexSuffix), clamp01(getF("fmIndex", 0.5f, 0.0f, 1.0f)));
     setParamValue(makePadParamId(padIndex, kFmSweepSuffix), clamp01(getF("fmSweep", 0.5f, 0.0f, 1.0f)));
+    // Audit Phase 5 D1/D3.
+    setParamValue(makePadParamId(padIndex, kVelToClickSuffix), clamp01(getF("velToClick", 0.6f, 0.0f, 1.0f)));
+    setParamValue(makePadParamId(padIndex, kRevSendSuffix),    clamp01(getF("revSend",    0.0f, 0.0f, 1.0f)));
+    setParamValue(makePadParamId(padIndex, kDlySendSuffix),    clamp01(getF("dlySend",    0.0f, 0.0f, 1.0f)));
     if (warningCount > 0)
         juce::Logger::writeToLog("[DrumPadPreset] Sanitization warnings=" + juce::String(warningCount));
     currentPadPresetIndices[static_cast<std::size_t>(padIndex)] = -1;
@@ -2992,6 +3157,88 @@ void DrumSynthAudioProcessor::processGlobalEQ(juce::AudioBuffer<float>& mainBuff
     auto* right = mainBuffer.getNumChannels() >= 2 ? mainBuffer.getWritePointer(1) : nullptr;
 
     fxEq.process(left, right, numSamples, ep);
+}
+
+// =============================================================================
+// Audit Phase 5 D3: per-pad FX sends
+// -----------------------------------------------------------------------------
+// renderActiveVoicesForRange has accumulated each voice's contribution into
+// reverbSendBuffer / delaySendBuffer, scaled by the pad's send amount. Here we
+// apply a wet-only pass through the dedicated send instances and sum the
+// result back into the master buffer. When all sends are zero (or the matching
+// global FX is disabled), the buses are silent and we early-out.
+// =============================================================================
+void DrumSynthAudioProcessor::processPadSends(juce::AudioBuffer<float>& mainBuffer)
+{
+    const int numSamples = mainBuffer.getNumSamples();
+    if (numSamples <= 0)
+        return;
+
+    // ---- Reverb send return ----
+    if (reverbSendBuffer.getNumChannels() > 0
+        && reverbSendBuffer.getNumSamples() >= numSamples
+        && getParamValue(kFxReverbEn) >= 0.5f)
+    {
+        // Cheap silence detection so we skip when no pad is sending.
+        const float magL = reverbSendBuffer.getMagnitude(0, 0, numSamples);
+        const float magR = reverbSendBuffer.getNumChannels() > 1
+                           ? reverbSendBuffer.getMagnitude(1, 0, numSamples) : 0.0f;
+        if (magL > 1.0e-5f || magR > 1.0e-5f)
+        {
+            mds::fx::DattorroPlateReverb::Params rp;
+            rp.decay      = clamp01(getParamValue(kReverbSize));
+            rp.damping    = clamp01(getParamValue(kReverbDamping));
+            rp.width      = clamp01(getParamValue(kReverbWidth));
+            rp.mix        = 1.0f; // pure wet — dry is already in mainBuffer
+            rp.preDelayMs = juce::jlimit(0.0f, 100.0f, getParamValue(kReverbPredelay));
+
+            auto* l = reverbSendBuffer.getWritePointer(0);
+            auto* r = reverbSendBuffer.getNumChannels() >= 2 ? reverbSendBuffer.getWritePointer(1) : nullptr;
+            sendReverb.process(l, r, numSamples, rp);
+
+            for (int ch = 0; ch < juce::jmin(2, mainBuffer.getNumChannels()); ++ch)
+                mainBuffer.addFrom(ch, 0, reverbSendBuffer, ch, 0, numSamples);
+        }
+    }
+
+    // ---- Delay send return ----
+    if (delaySendBuffer.getNumChannels() > 0
+        && delaySendBuffer.getNumSamples() >= numSamples
+        && getParamValue(kFxDelayEn) >= 0.5f)
+    {
+        const float magL = delaySendBuffer.getMagnitude(0, 0, numSamples);
+        const float magR = delaySendBuffer.getNumChannels() > 1
+                           ? delaySendBuffer.getMagnitude(1, 0, numSamples) : 0.0f;
+        if (magL > 1.0e-5f || magR > 1.0e-5f)
+        {
+            mds::fx::StereoDelay::Params dp;
+            dp.timeMs    = getParamValue(kDelayTime);
+            dp.feedback  = getParamValue(kDelayFeedback);
+            dp.mix       = 1.0f; // pure wet
+            dp.syncToBpm = getParamValue(kDelaySync) >= 0.5f;
+            if (dp.syncToBpm)
+            {
+                if (auto* ph = getPlayHead())
+                {
+                    auto pos = ph->getPosition();
+                    if (pos.hasValue())
+                    {
+                        auto bpm = pos->getBpm();
+                        if (bpm.hasValue())
+                            dp.bpm = static_cast<float>(*bpm);
+                    }
+                }
+                dp.noteDiv = static_cast<int>(getParamValue(kDelayNoteDiv));
+            }
+
+            auto* l = delaySendBuffer.getWritePointer(0);
+            auto* r = delaySendBuffer.getNumChannels() >= 2 ? delaySendBuffer.getWritePointer(1) : nullptr;
+            sendDelay.process(l, r, numSamples, dp);
+
+            for (int ch = 0; ch < juce::jmin(2, mainBuffer.getNumChannels()); ++ch)
+                mainBuffer.addFrom(ch, 0, delaySendBuffer, ch, 0, numSamples);
+        }
+    }
 }
 
 // =============================================================================

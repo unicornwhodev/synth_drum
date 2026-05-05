@@ -6,56 +6,18 @@
 #include <memory>
 
 #include "PluginProcessor.h"
-#include "new composants/KnobComponentV5.h"
-#include "new composants/FaderComponentV5.h"
-#include "new composants/VUMeterComponentV5.h"
-#include "new composants/EnvelopeDisplayComponentV5.h"
-#include "new composants/OutputMeterComponentV5.h"
-#include "new composants/ToggleButtonComponentV5.h"
-#include "new composants/SelectorComponentV5.h"
-#include "new composants/UIThemeV5.h"
+#include "../new composants/UITheme.h"
+#include "../new composants/LayoutGrid.h"
+#include "../new composants/DrumKnob.h"
+#include "../new composants/DrumPad.h"
+#include "../new composants/DrumMeter.h"
+#include "../new composants/DrumEnvelope.h"
+#include "../new composants/DrumSelector.h"
+#include "../new composants/DrumToggle.h"
+#include "../new composants/DrumWaveform.h"
 
 // =============================================================================
-// Pad component — clean modern pad with accent glow
-// =============================================================================
-class PadComponentV5 : public juce::Component
-{
-public:
-    void configure(int index, const juce::String& padName, juce::Colour catCol);
-    void setSelected(bool s);
-    void flash();
-
-    // Audit Phase 4.4a: per-pad activity meter (mini-VU strip at bottom).
-    // Smoothed activity envelope updated by editor timer; paints a 3 px
-    // horizontal bar tinted with the pad's category colour.
-    void setActivityLevel(float linear) noexcept;
-
-    std::function<void(int)> onClicked;
-
-    void paint(juce::Graphics&) override;
-    void resized() override;
-    void mouseDown(const juce::MouseEvent&) override;
-    void mouseUp(const juce::MouseEvent&) override;
-    void mouseEnter(const juce::MouseEvent&) override;
-    void mouseExit(const juce::MouseEvent&) override;
-
-    // Per-frame flash decay update (called by parent timer).
-    void tickFlash();
-
-private:
-    int idx = 0;
-    juce::String name;
-    juce::Colour cat { 0xff888888 };
-    bool sel = false;
-    float flashA = 0.0f;
-    bool hover = false;
-    bool pressed = false;
-    float activity = 0.0f;        // smoothed, displayed mini-VU value
-    float activityTarget = 0.0f;  // raw incoming value, smoothed in tickFlash
-};
-
-// =============================================================================
-// Main editor — MIS Drum Synth v5
+// Main editor — MIS Drum Synth v5 — Hardware Redesign
 // =============================================================================
 class DrumSynthAudioProcessorEditor : public juce::AudioProcessorEditor,
                                       private juce::Timer
@@ -67,9 +29,10 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
 
-    static constexpr int kMinW = 900;
-    static constexpr int kMinH = 580;
-    static constexpr float kAspectRatio = 1340.0f / 760.0f;
+    static constexpr int kDefaultW = 800;
+    static constexpr int kDefaultH = 800;
+    static constexpr int kMinW = 600;
+    static constexpr int kMinH = 600;
 
 private:
     using APVTS = juce::AudioProcessorValueTreeState;
@@ -77,68 +40,91 @@ private:
     using ButtonAttach = APVTS::ButtonAttachment;
     using ComboBoxAttach = APVTS::ComboBoxAttachment;
 
-    // Parameter layout helpers
-    static juce::String formatValueForParam(const juce::String& paramId, double value);
-    void setupKnob(juce::Slider& s);
-    void setupFader(juce::Slider& s);
-
     // State
     DrumSynthAudioProcessor& proc;
+    std::unique_ptr<juce::LookAndFeel_V4> editorLookAndFeel;
+
+    // Layout regions (hardware-style layout)
+    juce::Rectangle<int> headerBounds;
+    juce::Rectangle<int> padBankBounds;
+    juce::Rectangle<int> inspectorBounds;
+    juce::Rectangle<int> voiceBounds;
+    juce::Rectangle<int> macroBounds;
+    juce::Rectangle<int> fxBounds;
+    juce::Rectangle<int> outputBounds;
+    juce::Rectangle<int> footerBounds;
+
+    juce::Array<DrumSynthAudioProcessor::PresetLibraryEntry> visiblePresetEntries;
+    bool presetUiRefreshing = false;
+    int selectedFxModule = 0;
+
+    // ---- Mode ----
+    bool singleMode = false;
 
     // ---- Header ----
-    juce::ComboBox presetBox;
-    juce::ComboBox familyFilterBox;
-    juce::TextButton prevBtn, nextBtn;
-    juce::Slider masterGainDial;
+    DrumSelector presetBox;
+    DrumSelector familyFilterBox;
+    juce::TextButton prevBtn{ "<" }, nextBtn{ ">" };
+    DrumKnob masterGainKnob{ "GAIN", 0.0, 2.0, 1.0, UITheme::accentOrange() };
+    DrumToggle singleModeBtn{ "SINGLE", UITheme::accentCyan() };
 
     // ---- Pad Grid ----
     static constexpr int kNumPads = 12;
-    std::array<PadComponentV5, kNumPads> pads;
+    std::array<DrumPad, kNumPads> pads;
     int selectedPadIdx = 0;
 
+    // ---- Single Mode: Big Pad ----
+    DrumPad bigPad;
+
     // ---- Voice Design ----
-    KnobComponentV5 levelKnob{ "LEVEL" };
-    KnobComponentV5 tuneKnob{ "TUNE", -24.0, 24.0, 0.0 };
-    KnobComponentV5 decayKnob{ "DECAY", 0.001, 5.0, 0.8 };
-    KnobComponentV5 attackKnob{ "ATTACK", 0.001, 2.0, 0.01 };
-    KnobComponentV5 pitchDropKnob{ "PITCH DROP", 0.0, 48.0, 0.0 };
-    KnobComponentV5 pitchDecayKnob{ "PITCH DECAY", 0.001, 2.0, 0.1 };
-    KnobComponentV5 noiseKnob{ "NOISE", 0.0, 1.0, 0.0 };
-    KnobComponentV5 clickKnob{ "CLICK", 0.0, 1.0, 0.3 };
-    KnobComponentV5 driveKnob{ "DRIVE", 0.0, 1.0, 0.0 };
-    KnobComponentV5 cutoffKnob{ "CUTOFF", 20.0, 20000.0, 8000.0 };
+    DrumKnob levelKnob{ "LEVEL", 0.0, 1.0, 0.8, UITheme::accentOrange() };
+    DrumKnob tuneKnob{ "TUNE", -24.0, 24.0, 0.0, UITheme::accentOrange() };
+    DrumKnob decayKnob{ "DECAY", 0.001, 5.0, 0.8, UITheme::accentOrange() };
+    DrumKnob attackKnob{ "ATTACK", 0.001, 2.0, 0.01, UITheme::accentOrange() };
+    DrumKnob pitchDropKnob{ "PITCH DROP", 0.0, 48.0, 0.0, UITheme::accentOrange() };
+    DrumKnob pitchDecayKnob{ "PITCH DECAY", 0.001, 2.0, 0.1, UITheme::accentOrange() };
+    DrumKnob noiseKnob{ "NOISE", 0.0, 1.0, 0.0, UITheme::accentCyan() };
+    DrumKnob clickKnob{ "CLICK", 0.0, 1.0, 0.3, UITheme::accentCyan() };
+    DrumKnob driveKnob{ "DRIVE", 0.0, 1.0, 0.0, UITheme::accentOrange() };
+    DrumKnob cutoffKnob{ "CUTOFF", 20.0, 20000.0, 8000.0, UITheme::accentCyan() };
 
     // ---- Macros ----
-    KnobComponentV5 macroPunch{ "PUNCH" };
-    KnobComponentV5 macroWeight{ "WEIGHT" };
-    KnobComponentV5 macroAir{ "AIR" };
-    KnobComponentV5 macroDirt{ "DIRT" };
+    DrumKnob macroPunch{ "PUNCH", 0.0, 1.0, 0.5, UITheme::accentGreen() };
+    DrumKnob macroWeight{ "WEIGHT", 0.0, 1.0, 0.5, UITheme::accentGreen() };
+    DrumKnob macroAir{ "AIR", 0.0, 1.0, 0.5, UITheme::accentGreen() };
+    DrumKnob macroDirt{ "DIRT", 0.0, 1.0, 0.5, UITheme::accentGreen() };
 
     // ---- FX Section ----
-    SelectorComponentV5 fxModuleSelector;
-    KnobComponentV5 fxParam1Knob{ "PARAM 1" };
-    KnobComponentV5 fxParam2Knob{ "PARAM 2" };
-    KnobComponentV5 fxParam3Knob{ "PARAM 3" };
-    KnobComponentV5 fxParam4Knob{ "PARAM 4" };
+    DrumSelector fxModuleSelector;
+    DrumToggle fxEnableBtn{ "MODULE", UITheme::accentAmber() };
+    DrumKnob fxParam1Knob{ "PARAM 1", 0.0, 1.0, 0.5, UITheme::accentAmber() };
+    DrumKnob fxParam2Knob{ "PARAM 2", 0.0, 1.0, 0.5, UITheme::accentAmber() };
+    DrumKnob fxParam3Knob{ "PARAM 3", 0.0, 1.0, 0.5, UITheme::accentAmber() };
+    DrumKnob fxParam4Knob{ "PARAM 4", 0.0, 1.0, 0.5, UITheme::accentAmber() };
 
     // ---- Meters ----
-    OutputMeterComponentV5 mainMeter;
-    OutputMeterComponentV5 auxMeter;
+    DrumMeter mainMeter;
 
-    // ---- Utility ----
-    ToggleButtonComponentV5 singleNoteBtn{ "SINGLE" };
-    ToggleButtonComponentV5 utilToggleBtn{ "UTILITY" };
-
-    // Audit Phase 4.7: pad-level routing & preset selectors required by the
-    // editor smoke test and the Phase 4 UX plan (§4.4 / §4.5).
-    juce::ComboBox padPresetBox;   // factory pad preset (per-pad recall)
-    juce::ComboBox padOutputBox;   // pad output bus routing (Master / Out 1..N)
-    std::unique_ptr<ComboBoxAttach> padOutputAttach;  // re-bound on selectedPad change
-
-    // Audit Phase 4.4b: ADSR display under the pad grid.
-    EnvelopeDisplayComponentV5 envDisplay;
+    // ---- Inspector / Sample ----
+    DrumToggle synthSampleToggle{ "SYNTH", UITheme::accentCyan() };
+    DrumWaveform waveformDisplay;
+    DrumSelector padPresetBox;
+    DrumSelector padOutputBox;
+    DrumKnob velToClickKnob{ "VEL→CLICK", 0.0, 1.0, 0.6, UITheme::accentCyan() };
+    DrumKnob reverbSendKnob{ "RVB SEND", 0.0, 1.0, 0.0, UITheme::accentGreen() };
+    DrumKnob delaySendKnob{ "DLY SEND", 0.0, 1.0, 0.0, UITheme::accentGreen() };
+    DrumEnvelope envDisplay;
+    DrumToggle delaySyncBtn{ "DLY SYNC", UITheme::accentAmber() };
+    DrumSelector delayNoteDivBox;
+    std::unique_ptr<SliderAttach> velToClickAttach;
+    std::unique_ptr<SliderAttach> reverbSendAttach;
+    std::unique_ptr<SliderAttach> delaySendAttach;
+    std::unique_ptr<ButtonAttach> delaySyncAttach;
+    std::unique_ptr<ComboBoxAttach> delayNoteDivAttach;
+    std::unique_ptr<ComboBoxAttach> padOutputAttach;
 
     // ---- Attachments ----
+    std::unique_ptr<ButtonAttach> singleNoteAttach;
     std::unique_ptr<SliderAttach> levelAttach;
     std::unique_ptr<SliderAttach> tuneAttach;
     std::unique_ptr<SliderAttach> decayAttach;
@@ -154,6 +140,8 @@ private:
     std::unique_ptr<SliderAttach> macroAirAttach;
     std::unique_ptr<SliderAttach> macroDirtAttach;
     std::unique_ptr<SliderAttach> masterGainAttach;
+    std::unique_ptr<ButtonAttach> fxEnableAttach;
+    std::array<std::unique_ptr<SliderAttach>, 4> fxParamAttach;
 
     // Internal
     void timerCallback() override;
@@ -162,14 +150,16 @@ private:
     juce::Colour padCatColour(int i) const;
     const char* padCatName(int i) const;
     void refreshPresetList();
+    void refreshPresetSelectionFromProcessor();
+    void navigateVisiblePreset(int delta);
     void refreshPadSelection();
     void refreshPadPresets();
-
-    // Audit Phase 4.4b/4.7: rebind padOutputBox to the currently selected pad
-    // and refresh the envelope display from APVTS attack/decay/pitch_decay.
+    void refreshFxModuleUi();
     void rebindPadRoutingForSelected();
     void refreshEnvelopeDisplay();
 
-    // Helpers
-    static void drawPanel(juce::Graphics& g, juce::Rectangle<int> area, juce::Colour accent);
+    // Helpers — hardware style
+    void drawBackground(juce::Graphics& g);
+    void drawSectionPanel(juce::Graphics& g, const juce::Rectangle<int>& area,
+                          const juce::String& title, juce::Colour accentCol);
 };

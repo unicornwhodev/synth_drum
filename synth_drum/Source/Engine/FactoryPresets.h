@@ -30,6 +30,14 @@ struct PadSettings
     float modalRing = 0.5f;
     float fmIndex = 0.5f;
     float fmSweep = 0.5f;
+    // Audit Phase 5 D1: per-pad velocity → click amount sensitivity (0..1).
+    // 0 = velocity-independent (raw click), 1 = full attenuation by velocity.
+    // Default 0.6 mirrors the previous hard-coded Snare/Hat behaviour.
+    float velocityToClick = 0.6f;
+    // Audit Phase 5 D3: per-pad FX sends (0..1). Routed in addition to the
+    // dry pad bus output. 0 = no send, 1 = unity send into the global FX bus.
+    float reverbSend = 0.0f;
+    float delaySend  = 0.0f;
     float baseFrequencyHz = 180.0f;
     PadVoiceModel voiceModel = PadVoiceModel::PercWood;
 };
@@ -117,7 +125,7 @@ struct GlobalFxSettings
 // Preset version tag — increment when adding new PadSettings/GlobalFxSettings fields.
 // loadUserPreset() and setStateInformation() use this to apply sensible defaults
 // and sanitize older states without breaking existing parameter IDs.
-static constexpr int kPresetVersion = 5;
+static constexpr int kPresetVersion = 6;
 
 struct KitPreset
 {

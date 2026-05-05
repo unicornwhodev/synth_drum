@@ -2,10 +2,7 @@
 
 SelectorComponentV5::SelectorComponentV5()
 {
-    addItem ("SINE", 1);
-    addItem ("TRIANGLE", 2);
-    addItem ("SAW", 3);
-    setSelectedId (1);
+    setTextWhenNothingSelected ("Select module");
 
     setColour (juce::ComboBox::textColourId, UIThemeV5::textMain());
     setColour (juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
@@ -15,11 +12,14 @@ SelectorComponentV5::SelectorComponentV5()
 void SelectorComponentV5::paint (juce::Graphics& g)
 {
     auto area = getLocalBounds().toFloat();
-    UIThemeV5::fillPanel (g, area, 10.0f);
+    UIThemeV5::fillRecess (g, area, 12.0f);
+
+    auto topRail = area.reduced (12.0f, 8.0f).removeFromTop (2.0f);
+    UIThemeV5::drawGlowStrip (g, topRail, 1.0f, 0.42f);
 
     g.setColour (UIThemeV5::textMain());
     g.setFont (UIThemeV5::labelFont());
-    g.drawText (getText(), getLocalBounds().reduced (14, 0), juce::Justification::centred);
+    g.drawText (getText(), getLocalBounds().reduced (14, 0), juce::Justification::centredLeft);
 
     juce::Path arrow;
     float cx = (float) getWidth() - 18.0f;
@@ -28,6 +28,6 @@ void SelectorComponentV5::paint (juce::Graphics& g)
     arrow.lineTo (cx, cy + 3.0f);
     arrow.lineTo (cx + 5.0f, cy - 2.0f);
 
-    g.setColour (UIThemeV5::textDim());
-    g.strokePath (arrow, juce::PathStrokeType (1.8f));
+    g.setColour (UIThemeV5::accentStrong());
+    g.strokePath (arrow, juce::PathStrokeType (2.0f));
 }

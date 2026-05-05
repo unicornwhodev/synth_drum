@@ -1,22 +1,51 @@
 #include "KnobComponentV5.h"
 
-static void drawKnobTicksV5 (juce::Graphics& g, juce::Point<float> c, float radius, float value)
+namespace
 {
-    const float start = juce::MathConstants<float>::pi * 1.19f;
-    const float end   = juce::MathConstants<float>::pi * 2.81f;
-    const int count = 29;
-
-    for (int i = 0; i < count; ++i)
+    juce::String formatKnobValue (const juce::Slider& slider)
     {
-        float t = (float) i / (float) (count - 1);
-        float a = juce::jmap (t, start, end);
-        auto p1 = c.getPointOnCircumference (radius * 1.05f, a);
-        auto p2 = c.getPointOnCircumference (radius * 1.145f, a);
+        const auto range = slider.getRange();
+        const double minValue = range.getStart();
+        const double maxValue = range.getEnd();
+        const double value = slider.getValue();
 
-        bool active = i <= juce::roundToInt (value * (float) (count - 1));
-        g.setColour (active ? UIThemeV5::accent().withAlpha (0.95f)
-                            : juce::Colours::white.withAlpha (0.15f));
-        g.drawLine ({ p1, p2 }, active ? 1.75f : 1.1f);
+        if (maxValue <= 1.001 && minValue >= -1.001)
+            return juce::String (juce::roundToInt (value * 100.0)) + "%";
+
+        if (maxValue >= 1000.0)
+        {
+            if (value >= 1000.0)
+                return juce::String (value / 1000.0, value >= 10000.0 ? 1 : 2) + "k";
+            return juce::String (juce::roundToInt (value));
+        }
+
+        if (maxValue - minValue <= 10.0)
+            return juce::String (value, 2);
+
+        if (maxValue - minValue <= 100.0)
+            return juce::String (value, std::abs (value) < 10.0 ? 1 : 0);
+
+        return juce::String (juce::roundToInt (value));
+    }
+
+    void drawKnobTicksV5 (juce::Graphics& g, juce::Point<float> c, float radius, float value)
+    {
+        const float start = juce::MathConstants<float>::pi * 1.19f;
+        const float end   = juce::MathConstants<float>::pi * 2.81f;
+        const int count = 25;
+
+        for (int i = 0; i < count; ++i)
+        {
+            float t = (float) i / (float) (count - 1);
+            float a = juce::jmap (t, start, end);
+            auto p1 = c.getPointOnCircumference (radius * 1.01f, a);
+            auto p2 = c.getPointOnCircumference (radius * 1.13f, a);
+
+            bool active = i <= juce::roundToInt (value * (float) (count - 1));
+            g.setColour (active ? UIThemeV5::accent().withAlpha (0.95f)
+                                : juce::Colours::white.withAlpha (0.12f));
+            g.drawLine ({ p1, p2 }, active ? 1.9f : 1.0f);
+        }
     }
 }
 
@@ -37,52 +66,65 @@ KnobComponentV5::KnobComponentV5 (juce::String labelText, double min, double max
     addAndMakeVisible (label);
 }
 
+void KnobComponentV5::paint (juce::Graphics& g)
+{
+    auto area = getLocalBounds().toFloat().reduced (1.0f);
+    UIThemeV5::fillRecess (g, area, 15.0f);
+
+    auto topRail = area.reduced (10.0f, 9.0f).removeFromTop (3.0f);
+    UIThemeV5::drawGlowStrip (g, topRail, 1.5f, 0.55f);
+}
+
 void KnobComponentV5::resized()
 {
-    auto area = getLocalBounds();
-    label.setBounds (area.removeFromBottom (24));
-    slider.setBounds (area.reduced (2));
+    auto area = getLocalBounds().reduced (6);
+    label.setBounds (area.removeFromTop (18));
+    area.removeFromTop (2);
+    slider.setBounds (area);
+}
+
+void KnobComponentV5::setLabelText (const juce::String& newText)
+{
+    label.setText (newText, juce::dontSendNotification);
 }
 
 void KnobComponentV5::LookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height,
-                                                     float sliderPosProportional, float, float, juce::Slider&)
+                                                     float sliderPosProportional, float, float, juce::Slider& slider)
 {
     auto full = juce::Rectangle<float> ((float) x, (float) y, (float) width, (float) height);
-    auto area = full.reduced (9.0f, 8.0f);
+    auto area = full.reduced (10.0f, 6.0f);
     auto c = area.getCentre();
     auto radius = juce::jmin (area.getWidth(), area.getHeight()) * 0.5f;
 
-    g.setColour (juce::Colours::black.withAlpha (0.34f));
+    g.setColour (juce::Colours::black.withAlpha (0.38f));
     g.fillEllipse (area.translated (0.0f, 5.0f));
 
-    auto ring = area;
-    juce::ColourGradient ringGrad (UIThemeV5::metalHi(), ring.getX(), ring.getY(),
-                                   UIThemeV5::metalLo(), ring.getRight(), ring.getBottom(), true);
-    ringGrad.addColour (0.28, UIThemeV5::metalUpper());
-    ringGrad.addColour (0.58, UIThemeV5::metalMid());
+    auto ring = area.reduced (1.0f);
+    juce::ColourGradient ringGrad (juce::Colour::fromRGB (59, 67, 79), ring.getCentreX(), ring.getY(),
+                                   juce::Colour::fromRGB (20, 24, 31), ring.getCentreX(), ring.getBottom(), false);
+    ringGrad.addColour (0.50, juce::Colour::fromRGB (36, 42, 52));
     g.setGradientFill (ringGrad);
     g.fillEllipse (ring);
 
-    g.setColour (juce::Colours::white.withAlpha (0.15f));
+    g.setColour (juce::Colours::white.withAlpha (0.07f));
     g.drawEllipse (ring, 1.0f);
 
-    auto middle = ring.reduced (ring.getWidth() * 0.125f);
-    juce::ColourGradient midGrad (juce::Colour::fromRGB (196, 202, 210), c.x, middle.getY(),
-                                  juce::Colour::fromRGB (86, 92, 100), c.x, middle.getBottom(), false);
+    auto middle = ring.reduced (ring.getWidth() * 0.13f);
+    juce::ColourGradient midGrad (UIThemeV5::metalUpper().withMultipliedAlpha (0.70f), c.x, middle.getY(),
+                                  UIThemeV5::metalLo().darker (0.30f), c.x, middle.getBottom(), false);
     g.setGradientFill (midGrad);
     g.fillEllipse (middle);
 
-    auto face = middle.reduced (middle.getWidth() * 0.17f);
-    juce::ColourGradient faceGrad (juce::Colour::fromRGB (237, 240, 245), c.x, face.getY(),
-                                   juce::Colour::fromRGB (115, 120, 128), c.x, face.getBottom(), false);
+    auto face = middle.reduced (middle.getWidth() * 0.18f);
+    juce::ColourGradient faceGrad (juce::Colour::fromRGB (52, 58, 67), c.x, face.getY(),
+                                   juce::Colour::fromRGB (25, 29, 35), c.x, face.getBottom(), false);
+    faceGrad.addColour (0.5, juce::Colour::fromRGB (38, 43, 50));
     g.setGradientFill (faceGrad);
     g.fillEllipse (face);
 
-    auto gloss = face.withTrimmedBottom (face.getHeight() * 0.55f).translated (-face.getWidth() * 0.08f, 0.0f);
-    juce::ColourGradient glossGrad (juce::Colours::white.withAlpha (0.34f), gloss.getCentreX(), gloss.getY(),
-                                    juce::Colours::transparentWhite, gloss.getCentreX(), gloss.getBottom(), false);
-    g.setGradientFill (glossGrad);
-    g.fillEllipse (gloss);
+    auto centreCap = face.reduced (face.getWidth() * 0.34f);
+    g.setColour (UIThemeV5::accentStrong().withAlpha (0.16f));
+    g.fillEllipse (centreCap);
 
     drawKnobTicksV5 (g, c, radius, sliderPosProportional);
 
@@ -91,12 +133,15 @@ void KnobComponentV5::LookAndFeel::drawRotarySlider (juce::Graphics& g, int x, i
     const float angle = juce::jmap (sliderPosProportional, start, end);
 
     juce::Path arc;
-    arc.addCentredArc (c.x, c.y, radius * 1.01f, radius * 1.01f, 0.0f, start, angle, true);
+    arc.addCentredArc (c.x, c.y, radius * 0.98f, radius * 0.98f, 0.0f, start, angle, true);
     g.setColour (UIThemeV5::accentGlow().withAlpha (0.82f));
-    g.strokePath (arc, juce::PathStrokeType (3.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    g.strokePath (arc, juce::PathStrokeType (4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
     auto p1 = c.getPointOnCircumference (radius * 0.18f, angle);
     auto p2 = c.getPointOnCircumference (radius * 0.69f, angle);
-    g.setColour (juce::Colour::fromRGB (246, 250, 255));
-    g.drawLine ({ p1, p2 }, 2.9f);
+    g.setColour (juce::Colour::fromRGB (255, 246, 226));
+    g.drawLine ({ p1, p2 }, 3.0f);
+
+    auto valueArea = juce::Rectangle<float> (radius * 1.18f, 16.0f).withCentre ({ c.x, c.y + radius * 0.30f });
+    UIThemeV5::drawValuePill (g, valueArea, formatKnobValue (slider), UIThemeV5::accentStrong(), 0.16f);
 }

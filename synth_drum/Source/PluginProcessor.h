@@ -187,6 +187,9 @@ private:
     void processGlobalDelay(juce::AudioBuffer<float>& mainBuffer);
     void processGlobalLimiter(juce::AudioBuffer<float>& mainBuffer);
     void processGlobalLfo(juce::AudioBuffer<float>& mainBuffer);
+    // Audit Phase 5 D3: process the per-pad send buses (reverb + delay) and
+    // mix the wet result into mainBuffer. Idempotent when sends are zero.
+    void processPadSends(juce::AudioBuffer<float>& mainBuffer);
     void processAuxBusSafety(juce::AudioBuffer<float>& busBuffer);
     void handleMidiCC(int ccNumber, int ccValue);
     void updateOutputMeters(const juce::AudioBuffer<float>& buffer, bool isAuxBus);
@@ -210,6 +213,17 @@ private:
     mds::fx::StereoDelay         fxDelay;
     mds::fx::OutputLimiter       fxLimiter;
     juce::AudioBuffer<float> fxDryBuffer;
+
+    // Audit Phase 5 D3: dedicated send instances + scratch buses for the
+    // per-pad reverb/delay sends. They run AFTER the master FX bus so dry/wet
+    // contributions stay independent. mix is forced to 1.0 (pure wet).
+    mds::fx::DattorroPlateReverb sendReverb;
+    mds::fx::StereoDelay         sendDelay;
+    juce::AudioBuffer<float>     reverbSendBuffer;
+    juce::AudioBuffer<float>     delaySendBuffer;
+    juce::AudioBuffer<float>     voiceScratchBuffer;
+    std::array<float, mds::kNumPads> currentPadReverbSend{};
+    std::array<float, mds::kNumPads> currentPadDelaySend{};
     std::array<float, 2> transientFastEnv = { 0.0f, 0.0f };
     std::array<float, 2> transientSlowEnv = { 0.0f, 0.0f };
     std::array<float, 2> saturatorPrevSample = { 0.0f, 0.0f };

@@ -14,13 +14,18 @@ void EnvelopeDisplayComponentV5::paint (juce::Graphics& g)
     auto area = getLocalBounds().toFloat();
     UIThemeV5::fillRecess (g, area, 14.0f);
 
+    auto header = area.reduced (16.0f, 12.0f).removeFromTop (14.0f);
+    g.setColour (UIThemeV5::textDim());
+    g.setFont (UIThemeV5::smallFont());
+    g.drawText ("Envelope contour", header, juce::Justification::centredLeft, false);
+
     g.setColour (juce::Colours::white.withAlpha (0.045f));
     for (int i = 1; i < 10; ++i)
         g.drawVerticalLine (juce::roundToInt (juce::jmap ((float) i / 10.0f, area.getX(), area.getRight())), area.getY(), area.getBottom());
     for (int i = 1; i < 6; ++i)
         g.drawHorizontalLine (juce::roundToInt (juce::jmap ((float) i / 6.0f, area.getY(), area.getBottom())), area.getX(), area.getRight());
 
-    auto plot = area.reduced (21.0f, 18.0f);
+    auto plot = area.reduced (21.0f, 18.0f).withTrimmedTop (12.0f);
 
     auto p0 = juce::Point<float> (plot.getX() + plot.getWidth() * 0.05f, plot.getBottom() - 8.0f);
     auto p1 = juce::Point<float> (plot.getX() + plot.getWidth() * (0.11f + a * 0.08f), plot.getY() + 8.0f);

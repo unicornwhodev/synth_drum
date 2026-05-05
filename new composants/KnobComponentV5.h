@@ -8,8 +8,11 @@ public:
     KnobComponentV5 (juce::String labelText, double min = 0.0, double max = 1.0, double value = 0.5);
     ~KnobComponentV5() override = default;
 
+    void paint (juce::Graphics&) override;
     void resized() override;
     juce::Slider& getSlider() noexcept { return slider; }
+    void setLabelText (const juce::String& newText);
+    juce::String getLabelText() const { return label.getText(); }
 
 private:
     class LookAndFeel : public juce::LookAndFeel_V4

@@ -82,15 +82,20 @@ void DrumVoice::start(const PadSettings& settingsToUse, const float noteVelocity
 
     // NOTE: velocity is already applied in render() via `sample *= velocity * settings.level`,
     // so we do NOT scale clickAmount/noiseAmount by velocity here (that would double-apply it).
-    // Audit Phase 3.1: EXCEPTION — for Snare/Hat we DO apply an additional non-linear
-    // velocity curve to clickAmount only. The percussive transient ("click") needs to be
-    // perceptually more dynamic than the body: at vel=1.0 click is unchanged (×1.0),
-    // at vel=0.0 click is reduced to 40% of nominal. Combined with the linear velocity
-    // factor in render(), the effective click contribution scales as vel × (0.4 + 0.6×vel),
-    // i.e. quadratic-ish, matching how acoustic snares/hats behave: soft hits = mostly body,
-    // hard hits = body + sharp click. This is the click-only curve, not a double-apply.
-    if (settings.voiceModel == PadVoiceModel::Snare || settings.voiceModel == PadVoiceModel::Hat)
-        settings.clickAmount *= (0.4f + 0.6f * velocity);
+    // Audit Phase 5 D1: per-pad `velocityToClick` (0..1) replaces the Phase 3.1
+    // hard-coded Snare/Hat curve. Universal formula:
+    //     clickAmount *= (1 - velToClick) + velToClick * velocity
+    // velToClick = 0   → no extra modulation (×1.0 for any vel)
+    // velToClick = 1   → click linearly tracks velocity (×velocity)
+    // velToClick = 0.6 → matches the previous Snare/Hat curve (×(0.4 + 0.6·vel))
+    // Combined with the linear velocity factor in render(), the effective click
+    // contribution scales as vel × (1 - velToClick + velToClick · vel), keeping the
+    // same perceptual dynamic for percussive transients while letting other voice
+    // models opt-in (default 0.6 chosen to match the previous Snare/Hat behaviour).
+    {
+        const float v = juce::jlimit(0.0f, 1.0f, settings.velocityToClick);
+        settings.clickAmount *= (1.0f - v) + v * velocity;
+    }
     settings.clickAmount = juce::jlimit(0.0f, 1.0f, settings.clickAmount);
     settings.noiseAmount = juce::jlimit(0.0f, 1.0f, settings.noiseAmount);
     if (settings.pitchDropSemitones > k::kPitchDropVelThreshold)
