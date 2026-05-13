@@ -6,9 +6,10 @@ Reference rapide des controles exposes dans l'editeur Drum et de leurs IDs APVTS
 
 - Les parametres de pad suivent le schema `pad_<padIndex>_<suffix>`.
 - `padIndex` va de `0` a `11`.
-- Les macros et FX sont globaux au kit.
+- Les macros, LFO, humanize et FX sont globaux au kit.
 - L'editeur expose maintenant les pages `ADV FX` pour `EQ`, `Chorus`, `Delay`, `Limiter` et `Reverb Predelay`.
 - Pas de mod matrix dans le drum : la modulation est assuree par le LFO global uniquement.
+- Chaque pad possede 15 parametres communs (niveau, tune, decay, attack, pitch drop, pitch decay, noise, click, drive, cutoff, pan, output, vel_to_click, rev_send, dly_send).
 
 ## Catalogue des pads
 
@@ -31,7 +32,7 @@ Reference rapide des controles exposes dans l'editeur Drum et de leurs IDs APVTS
 
 ### Parametres specifiques par type de pad (voice-specific)
 
-En plus des 12 parametres communs, certains pads exposent des controles supplementaires lies a leur moteur de synthese:
+En plus des 15 parametres communs, certains pads exposent des controles supplementaires lies a leur moteur de synthese:
 
 | Pad | Parametre | Param ID | Role |
 | --- | --- | --- | --- |
@@ -74,6 +75,26 @@ En plus des 12 parametres communs, certains pads exposent des controles suppleme
 | Cutoff | `pad_<n>_cutoff` | Filtrage principal. |
 | Pan | `pad_<n>_pan` | Placement stereo. |
 | Output | `pad_<n>_output` | Routage `Master` ou `Out 1..12`. |
+| Vel to Click | `pad_<n>_vel_to_click` | Sensibilite de la velocite au click. |
+| Rev Send | `pad_<n>_rev_send` | Envoi individuel vers la reverb. |
+| Dly Send | `pad_<n>_dly_send` | Envoi individuel vers le delay. |
+
+## Parametres globaux
+
+| UI Label | Param ID | Role |
+| --- | --- | --- |
+| Quality Mode | `quality_mode` | Choix `Live` / `Studio`. |
+| Velocity Curve | `velocity_curve` | Courbe de velocite (7 options). |
+| LFO Rate | `lfo_rate` | Frequence du LFO global [0.1, 20] Hz. |
+| LFO Depth | `lfo_depth` | Profondeur du LFO global [0, 1]. |
+| LFO Wave | `lfo_wave` | Forme d'onde du LFO (4 options). |
+| Humanize Timing | `humanize_timing` | Variation aleatoire de timing [0, 50] ms. |
+| Humanize Level | `humanize_level` | Variation aleatoire de niveau [0, 0.2]. |
+| Aux Post FX | `aux_post_fx` | Routage aux apres les FX. |
+| Reverb Enable | `fx_reverb_en` | Active la reverb globale. |
+| Transient Enable | `fx_transient_en` | Active le transient shaper global. |
+| Saturator Enable | `fx_saturator_en` | Active la saturateur globale. |
+| Compressor Enable | `fx_comp_en` | Active le compresseur global. |
 
 ## Presets et transport
 

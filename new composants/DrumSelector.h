@@ -24,16 +24,16 @@ private:
 
         juce::Label* createComboBoxTextBox(juce::ComboBox& box) override
         {
-            auto* lbl = juce::LookAndFeel_V4::createComboBoxTextBox(box);
-            lbl->setFont(UITheme::fontLabel());
-            lbl->setColour(juce::Label::textColourId, UITheme::textMain());
-            lbl->setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
-            return lbl;
+            auto* label = juce::LookAndFeel_V4::createComboBoxTextBox(box);
+            label->setFont(UITheme::fontLabel());
+            label->setColour(juce::Label::textColourId, UITheme::textMain());
+            label->setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+            return label;
         }
 
-        void positionComboBoxText(juce::ComboBox& box, juce::Label& lbl) override
+        void positionComboBoxText(juce::ComboBox& box, juce::Label& label) override
         {
-            lbl.setBounds(10, 0, box.getWidth() - 30, box.getHeight());
+            label.setBounds(10, 0, box.getWidth() - 30, box.getHeight());
         }
 
         void drawComboBox(juce::Graphics& g, int width, int height, bool, int, int, int, int, juce::ComboBox&) override

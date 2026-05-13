@@ -30,6 +30,20 @@ Bootstrap JUCE locally inside the repo when needed:
 
 Add `-RunTests` to execute the exported console test target after the build.
 
+## RC packaging
+
+Generate an internal unsigned Windows installer:
+
+```powershell
+.\_package_inno.ps1 -Configuration Release -RunTests -AppVersion 1.0.1
+```
+
+Expected installer:
+
+```text
+installer\output\UWdeVST_Drum_1.0.1_Windows_x64_Setup.exe
+```
+
 ## Notes
 - JUCE is intentionally not committed in this export; `_build_all.ps1` can use an existing checkout or clone `8.0.4` into `JUCE/`.
 - The repo carries the asset files referenced by its exported `CMakeLists.txt`, so no sibling monorepo folders are required.

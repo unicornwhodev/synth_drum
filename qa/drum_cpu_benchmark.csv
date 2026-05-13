@@ -1,5 +1,5 @@
 scenario,kit,cpu_pct,duration_seconds,iterations,baseline_cpu_pct,regression_pct
-"Single Hit","Classique Standard",0.4300,1.00,40,,
-"Dense Groove","Moderne Club",0.6478,2.00,40,,
-"Hat Choke","Moderne Trap",0.3928,1.50,40,,
-"FX Chain","Moderne Electro",1.1171,2.00,40,,
+"Single Hit","Classique Standard",0.4250,1.00,40,,
+"Dense Groove","Moderne Club",0.6519,2.00,40,,
+"Hat Choke","Moderne Trap",0.3160,1.50,40,,
+"FX Chain","Moderne Electro",1.1359,2.00,40,,

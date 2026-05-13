@@ -71,8 +71,8 @@ constexpr float kKickPitchSlowScale     = 1.2f;      // slow stage = 120% of dec
 constexpr float kKickPitchStageThresh   = 1.01f;     // switch when within 1% of mid
 
 // ---- Metallic partials ----
-constexpr float kMetalBaseMinHz         = 400.0f;    // minimum metallic base frequency
-constexpr float kMetalBaseFreqDivisor   = 10.0f;     // metalBase = max(400, startFreq/10)
+constexpr float kMetalBaseMinHz         = 1200.0f;   // minimum metallic base frequency
+constexpr float kMetalBaseFreqDivisor   = 3.0f;      // metalBase = max(1200, startFreq/3)
 
 // ---- Clap (NoiseBurst) ----
 constexpr float kClapBurstDecayRate     = 90.0f;     // exponential decay rate per burst

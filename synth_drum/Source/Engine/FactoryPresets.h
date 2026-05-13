@@ -171,8 +171,9 @@ void         applyTargetMatrix(KitPreset& kit, KitFamily family);
 
 struct PadPreset
 {
-    std::string  name;
-    PadSettings  settings;
+    std::string     name;
+    PadSettings     settings;
+    GlobalFxSettings fx;
 };
 
 PadSettings getDefaultPadSettings(int padIndex);

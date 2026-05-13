@@ -17,7 +17,7 @@
 #include "../new composants/DrumWaveform.h"
 
 // =============================================================================
-// Main editor — MIS Drum Synth v5 — Hardware Redesign
+// Main editor — MIS Drum Synth v5 — UI/UX Redesign
 // =============================================================================
 class DrumSynthAudioProcessorEditor : public juce::AudioProcessorEditor,
                                       private juce::Timer
@@ -29,10 +29,10 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
 
-    static constexpr int kDefaultW = 800;
-    static constexpr int kDefaultH = 800;
-    static constexpr int kMinW = 600;
-    static constexpr int kMinH = 600;
+    static constexpr int kDefaultW = 1000;
+    static constexpr int kDefaultH = 820;
+    static constexpr int kMinW = 800;
+    static constexpr int kMinH = 650;
 
 private:
     using APVTS = juce::AudioProcessorValueTreeState;
@@ -40,41 +40,36 @@ private:
     using ButtonAttach = APVTS::ButtonAttachment;
     using ComboBoxAttach = APVTS::ComboBoxAttachment;
 
-    // State
     DrumSynthAudioProcessor& proc;
     std::unique_ptr<juce::LookAndFeel_V4> editorLookAndFeel;
 
-    // Layout regions (hardware-style layout)
+    // Layout regions
     juce::Rectangle<int> headerBounds;
-    juce::Rectangle<int> padBankBounds;
-    juce::Rectangle<int> inspectorBounds;
-    juce::Rectangle<int> voiceBounds;
-    juce::Rectangle<int> macroBounds;
-    juce::Rectangle<int> fxBounds;
-    juce::Rectangle<int> outputBounds;
     juce::Rectangle<int> footerBounds;
+    juce::Rectangle<int> padZoneBounds;
+    juce::Rectangle<int> voiceZoneBounds;
+    juce::Rectangle<int> fxZoneBounds;
+    juce::Rectangle<int> envBounds;
+    juce::Rectangle<int> inspectorBounds;
 
     juce::Array<DrumSynthAudioProcessor::PresetLibraryEntry> visiblePresetEntries;
     bool presetUiRefreshing = false;
     int selectedFxModule = 0;
-
-    // ---- Mode ----
     bool singleMode = false;
 
     // ---- Header ----
     DrumSelector presetBox;
     DrumSelector familyFilterBox;
     juce::TextButton prevBtn{ "<" }, nextBtn{ ">" };
+    juce::TextButton utilityDrawerBtn{ "Utility" };
     DrumKnob masterGainKnob{ "GAIN", 0.0, 2.0, 1.0, UITheme::accentOrange() };
     DrumToggle singleModeBtn{ "SINGLE", UITheme::accentCyan() };
+    bool utilityDrawerOpen = false;
 
     // ---- Pad Grid ----
     static constexpr int kNumPads = 12;
     std::array<DrumPad, kNumPads> pads;
     int selectedPadIdx = 0;
-
-    // ---- Single Mode: Big Pad ----
-    DrumPad bigPad;
 
     // ---- Voice Design ----
     DrumKnob levelKnob{ "LEVEL", 0.0, 1.0, 0.8, UITheme::accentOrange() };
@@ -105,7 +100,7 @@ private:
     // ---- Meters ----
     DrumMeter mainMeter;
 
-    // ---- Inspector / Sample ----
+    // ---- Inspector / Routing ----
     DrumToggle synthSampleToggle{ "SYNTH", UITheme::accentCyan() };
     DrumWaveform waveformDisplay;
     DrumSelector padPresetBox;
@@ -158,8 +153,9 @@ private:
     void rebindPadRoutingForSelected();
     void refreshEnvelopeDisplay();
 
-    // Helpers — hardware style
     void drawBackground(juce::Graphics& g);
     void drawSectionPanel(juce::Graphics& g, const juce::Rectangle<int>& area,
                           const juce::String& title, juce::Colour accentCol);
+    void drawPadWithActivity(juce::Graphics& g, const juce::Rectangle<int>& area, int padIdx);
+    void drawFamilyBadge(juce::Graphics& g, juce::Point<float> centre, const juce::String& text, juce::Colour col);
 };

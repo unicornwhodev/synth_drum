@@ -251,7 +251,8 @@ int padIndexFromName(const juce::String& name)
     const auto wanted = slug(name);
     if (wanted == "kick_a" || wanted == "kicka") return 0;
     if (wanted == "kick_b" || wanted == "kickb") return 1;
-    if (wanted == "snare") return 2;
+    if (wanted == "snare" || wanted == "snare_a" || wanted == "snarea") return 2;
+    if (wanted == "snare_b" || wanted == "snareb") return 3;
     if (wanted == "clap") return 3;
     if (wanted == "hat_closed" || wanted == "hatclosed") return 4;
     if (wanted == "hat_open" || wanted == "hatopen") return 5;
@@ -260,6 +261,7 @@ int padIndexFromName(const juce::String& name)
     if (wanted == "tom_low" || wanted == "tomlow") return 8;
     if (wanted == "tom_high" || wanted == "tomhigh") return 9;
     if (wanted == "crash") return 10;
+    if (wanted == "ride") return 10;
     if (wanted == "fx") return 11;
     return -1;
 }
@@ -734,6 +736,7 @@ void applyMasterFxChain(juce::AudioBuffer<float>& buffer, const mds::GlobalFxSet
     applyDelay(buffer, fx);
     applyReverb(buffer, renderFx);
     applyStereoWidth(buffer, renderFx);
+    buffer.applyGain(juce::Decibels::decibelsToGain(fx.outputGainDb));
     applyLimiter(buffer, fx);
     applyDcHighPass(buffer);
 }
@@ -1373,12 +1376,433 @@ bool hasCompleteMetadata(const mds::KitPreset& kit)
         && !kit.tags.empty()
         && std::isfinite(kit.nominalPeakDb);
 }
+
+juce::String twoDigit(const int value)
+{
+    return value < 10 ? "0" + juce::String(value) : juce::String(value);
+}
+
+float peakMagnitude(const juce::AudioBuffer<float>& buffer)
+{
+    float peak = 0.0f;
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        peak = std::max(peak, buffer.getMagnitude(ch, 0, buffer.getNumSamples()));
+    return peak;
+}
+
+bool bufferIsFinite(const juce::AudioBuffer<float>& buffer)
+{
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        const auto* data = buffer.getReadPointer(ch);
+        for (int i = 0; i < buffer.getNumSamples(); ++i)
+            if (!std::isfinite(data[i]))
+                return false;
+    }
+    return true;
+}
+
+void addBufferTo(juce::AudioBuffer<float>& destination,
+                 const juce::AudioBuffer<float>& source,
+                 const float gain = 1.0f)
+{
+    const auto samples = std::min(destination.getNumSamples(), source.getNumSamples());
+    const auto channels = std::min(destination.getNumChannels(), source.getNumChannels());
+    for (int ch = 0; ch < channels; ++ch)
+        destination.addFrom(ch, 0, source, ch, 0, samples, gain);
+}
+
+void scaleBufferToPeak(juce::AudioBuffer<float>& buffer,
+                       const float targetPeak,
+                       const bool allowMakeup)
+{
+    const auto peak = peakMagnitude(buffer);
+    if (peak <= 0.000001f)
+        return;
+
+    if (allowMakeup || peak > targetPeak)
+        buffer.applyGain(targetPeak / peak);
+}
+
+const mds::KitPreset& requireFactoryKit(const char* name)
+{
+    if (const auto* kit = findFactoryKitByName(name))
+        return *kit;
+
+    throw std::runtime_error((std::string("Missing factory kit for drum release suite: ") + name).c_str());
+}
+
+int sampleAtBeat(const int barIndex, const double beatInBar, const double beatSeconds)
+{
+    constexpr double kBeatsPerBar = 4.0;
+    const auto seconds = (static_cast<double>(barIndex) * kBeatsPerBar + beatInBar) * beatSeconds;
+    return static_cast<int>(std::round(seconds * kSampleRate));
+}
+
+enum class DrumReleaseStem : int
+{
+    Core = 0,
+    HatsCymbals,
+    PercussionToms,
+    Fx,
+    Count
+};
+
+constexpr int kDrumReleaseStemCount = static_cast<int>(DrumReleaseStem::Count);
+
+juce::String drumReleaseStemName(const int stemIndex)
+{
+    switch (static_cast<DrumReleaseStem>(stemIndex))
+    {
+        case DrumReleaseStem::Core:           return "core_kick_snare";
+        case DrumReleaseStem::HatsCymbals:    return "hats_cymbals";
+        case DrumReleaseStem::PercussionToms: return "percussion_toms";
+        case DrumReleaseStem::Fx:             return "fx";
+        case DrumReleaseStem::Count:          break;
+    }
+    return "unknown";
+}
+
+int drumReleaseStemForPad(const int padIndex)
+{
+    switch (padIndex)
+    {
+        case 0:
+        case 1:
+        case 2:
+        case 3:
+            return static_cast<int>(DrumReleaseStem::Core);
+        case 4:
+        case 5:
+        case 10:
+            return static_cast<int>(DrumReleaseStem::HatsCymbals);
+        case 6:
+        case 7:
+        case 8:
+        case 9:
+            return static_cast<int>(DrumReleaseStem::PercussionToms);
+        case 11:
+            return static_cast<int>(DrumReleaseStem::Fx);
+        default:
+            return static_cast<int>(DrumReleaseStem::Fx);
+    }
+}
+
+struct DrumReleaseEvent
+{
+    const mds::KitPreset* kit = nullptr;
+    int sample = 0;
+    int padIndex = 0;
+    float velocity = 0.8f;
+};
+
+std::vector<DrumReleaseEvent> makeDrumReleaseEvents()
+{
+    constexpr double kBpm = 90.0;
+    const auto beatSeconds = 60.0 / kBpm;
+
+    const auto& standard = requireFactoryKit("Classique Standard");
+    const auto& trap = requireFactoryKit("Moderne Trap");
+    const auto& cinematic = requireFactoryKit("Cinematique Percussion");
+    const auto& electro = requireFactoryKit("Moderne Electro");
+
+    std::vector<DrumReleaseEvent> events;
+    auto add = [&events, beatSeconds](const mds::KitPreset& kit,
+                                      const int bar,
+                                      const double beat,
+                                      const int pad,
+                                      const float velocity)
+    {
+        events.push_back({ &kit, sampleAtBeat(bar, beat, beatSeconds), pad, velocity });
+    };
+
+    for (int bar = 0; bar < 2; ++bar)
+    {
+        add(standard, bar, 0.00, 0, 0.92f);
+        add(standard, bar, 1.50, 1, 0.52f);
+        add(standard, bar, 2.00, 0, 0.76f);
+        add(standard, bar, 1.00, 2, 0.84f);
+        add(standard, bar, 3.00, 2, 0.88f);
+        add(standard, bar, 3.00, 3, 0.48f);
+        for (int step = 0; step < 8; ++step)
+            add(standard, bar, static_cast<double>(step) * 0.5, 4, step % 2 == 0 ? 0.45f : 0.34f);
+        add(standard, bar, 3.50, 5, 0.42f);
+    }
+
+    for (int bar = 2; bar < 4; ++bar)
+    {
+        add(trap, bar, 0.00, 0, 0.90f);
+        add(trap, bar, 0.75, 1, 0.54f);
+        add(trap, bar, 2.00, 0, 0.78f);
+        add(trap, bar, 2.50, 1, 0.48f);
+        add(trap, bar, 1.00, 2, 0.86f);
+        add(trap, bar, 3.00, 2, 0.88f);
+        for (int step = 0; step < 16; ++step)
+            add(trap, bar, static_cast<double>(step) * 0.25, 4, (step % 4 == 0) ? 0.60f : 0.38f);
+        add(trap, bar, 1.75, 5, 0.46f);
+        add(trap, bar, 1.875, 4, 0.72f);
+        add(trap, bar, 3.50, 5, 0.42f);
+        add(trap, bar, 3.625, 4, 0.70f);
+    }
+
+    for (int bar = 4; bar < 6; ++bar)
+    {
+        add(cinematic, bar, 0.00, 0, 0.94f);
+        add(cinematic, bar, 0.00, 10, bar == 4 ? 0.72f : 0.48f);
+        add(cinematic, bar, 1.00, 6, 0.84f);
+        add(cinematic, bar, 1.50, 7, 0.78f);
+        add(cinematic, bar, 2.00, 8, 0.82f);
+        add(cinematic, bar, 2.50, 9, 0.78f);
+        add(cinematic, bar, 3.00, 2, 0.78f);
+        add(cinematic, bar, 3.50, 11, 0.58f);
+    }
+
+    for (int bar = 6; bar < 8; ++bar)
+    {
+        add(electro, bar, 0.00, 0, 0.86f);
+        add(electro, bar, 0.50, 11, 0.50f);
+        add(electro, bar, 1.00, 3, 0.78f);
+        add(electro, bar, 2.00, 0, 0.72f);
+        add(electro, bar, 3.00, 2, 0.82f);
+        add(electro, bar, 3.50, 11, 0.56f);
+        for (int step = 0; step < 8; ++step)
+            add(electro, bar, static_cast<double>(step) * 0.5, 4, 0.46f);
+        add(electro, bar, 2.75, 6, 0.58f);
+        add(electro, bar, 3.25, 7, 0.54f);
+    }
+
+    return events;
+}
+
+juce::AudioBuffer<float> renderReleaseEvents(const std::vector<DrumReleaseEvent>& releaseEvents,
+                                             const mds::KitPreset& kit,
+                                             const int totalSamples,
+                                             const int stemFilter)
+{
+    std::vector<ScheduledPadEvent> scheduled;
+    for (const auto& event : releaseEvents)
+    {
+        if (event.kit != &kit)
+            continue;
+        if (stemFilter >= 0 && drumReleaseStemForPad(event.padIndex) != stemFilter)
+            continue;
+        scheduled.push_back({ event.sample, event.padIndex, event.velocity });
+    }
+
+    juce::AudioBuffer<float> buffer(2, totalSamples);
+    buffer.clear();
+    if (scheduled.empty())
+        return buffer;
+
+    buffer = renderScheduledPads(kit, scheduled, static_cast<double>(totalSamples) / kSampleRate);
+    applyMasterFxChain(buffer, kit.fx);
+    return buffer;
+}
+
+struct DrumReleaseReportRow
+{
+    juce::String file;
+    juce::String type;
+    juce::String kit;
+    juce::String target;
+    AudioMetrics metrics;
+    bool finite = true;
+    juce::String status;
+    juce::String notes;
+};
+
+DrumReleaseReportRow makeDrumReleaseReportRow(const juce::File& file,
+                                              const juce::String& type,
+                                              const juce::String& kit,
+                                              const juce::String& target,
+                                              const juce::AudioBuffer<float>& buffer,
+                                              const juce::String& notes,
+                                              const bool requireMainHeadroom)
+{
+    DrumReleaseReportRow row;
+    row.file = file.getRelativePathFrom(juce::File::getCurrentWorkingDirectory());
+    row.type = type;
+    row.kit = kit;
+    row.target = target;
+    row.metrics = measureBuffer(buffer);
+    row.finite = bufferIsFinite(buffer);
+    row.notes = notes;
+
+    const bool audible = row.metrics.peakDb >= musique::qa::kMinimumAudiblePeakDb;
+    const bool clipped = row.metrics.peakDb > musique::qa::kMaximumPeakDb + musique::qa::kClippingToleranceDb;
+    const bool headroomOk = !requireMainHeadroom || row.metrics.peakDb <= -1.0f;
+    row.status = (row.finite && audible && !clipped && headroomOk) ? "PASS" : "FAIL";
+    return row;
+}
+
+void writeDrumReleaseReport(const juce::File& reportFile,
+                            const std::vector<DrumReleaseReportRow>& rows)
+{
+    juce::StringArray lines;
+    lines.add("file,type,kit,target,peak_db,rms_db,crest_db,tail_ms,stereo_width,finite,status,notes");
+    for (const auto& row : rows)
+    {
+        const auto crestDb = row.metrics.peakDb - row.metrics.rmsDb;
+        lines.add(csvEscape(row.file) + ","
+            + csvEscape(row.type) + ","
+            + csvEscape(row.kit) + ","
+            + csvEscape(row.target) + ","
+            + juce::String(row.metrics.peakDb, 2) + ","
+            + juce::String(row.metrics.rmsDb, 2) + ","
+            + juce::String(crestDb, 2) + ","
+            + juce::String(row.metrics.tailMs, 2) + ","
+            + juce::String(row.metrics.stereoWidth, 4) + ","
+            + juce::String(row.finite ? "true" : "false") + ","
+            + csvEscape(row.status) + ","
+            + csvEscape(row.notes));
+    }
+
+    reportFile.getParentDirectory().createDirectory();
+    reportFile.replaceWithText(lines.joinIntoString("\n"));
+}
+
+const mds::KitPreset& identityKitForPad(const int pad)
+{
+    switch (pad)
+    {
+        case 2:
+        case 3:
+            return requireFactoryKit("Acoustique Studio");
+        case 4:
+        case 5:
+            return requireFactoryKit("Moderne Trap");
+        case 6:
+        case 7:
+        case 8:
+        case 9:
+            return requireFactoryKit("Cinematique Percussion");
+        case 10:
+            return requireFactoryKit("Cinematique Epic");
+        case 11:
+            return requireFactoryKit("Moderne Electro");
+        default:
+            return requireFactoryKit("Classique Standard");
+    }
+}
+
+static int runRenderReleaseSuite(const juce::File& outputBase,
+                                 const juce::File& reportFile)
+{
+    constexpr double kBars = 8.0;
+    constexpr double kBeatsPerBar = 4.0;
+    constexpr double kBpm = 90.0;
+    constexpr double kTailSeconds = 2.0;
+    constexpr float kMainTargetPeak = 0.89f; // -1.01 dBFS.
+    const auto durationSeconds = (kBars * kBeatsPerBar * 60.0 / kBpm) + kTailSeconds;
+    const int totalSamples = static_cast<int>(std::ceil(durationSeconds * kSampleRate));
+
+    outputBase.createDirectory();
+    const auto stemsDir = outputBase.getChildFile("stems");
+    const auto identityDir = outputBase.getChildFile("identity");
+    stemsDir.createDirectory();
+    identityDir.createDirectory();
+
+    const auto releaseEvents = makeDrumReleaseEvents();
+    const std::array<const mds::KitPreset*, 4> kits =
+    {{
+        &requireFactoryKit("Classique Standard"),
+        &requireFactoryKit("Moderne Trap"),
+        &requireFactoryKit("Cinematique Percussion"),
+        &requireFactoryKit("Moderne Electro")
+    }};
+
+    std::array<juce::AudioBuffer<float>, kDrumReleaseStemCount> stems;
+    juce::AudioBuffer<float> mainBuffer(2, totalSamples);
+    mainBuffer.clear();
+    for (auto& stem : stems)
+    {
+        stem.setSize(2, totalSamples);
+        stem.clear();
+    }
+
+    for (const auto* kit : kits)
+    {
+        for (int stemIndex = 0; stemIndex < kDrumReleaseStemCount; ++stemIndex)
+        {
+            auto buffer = renderReleaseEvents(releaseEvents, *kit, totalSamples, stemIndex);
+            addBufferTo(stems[static_cast<std::size_t>(stemIndex)], buffer);
+            addBufferTo(mainBuffer, buffer);
+        }
+    }
+
+    const auto mainPeakBefore = peakMagnitude(mainBuffer);
+    if (mainPeakBefore > 0.000001f)
+    {
+        const auto scale = kMainTargetPeak / mainPeakBefore;
+        mainBuffer.applyGain(scale);
+        for (auto& stem : stems)
+            stem.applyGain(scale);
+    }
+
+    std::vector<DrumReleaseReportRow> rows;
+    const auto mainFile = outputBase.getChildFile("main.wav");
+    if (!writeWav(mainFile, mainBuffer))
+        throw std::runtime_error(("Failed to write drum release main WAV: " + mainFile.getFullPathName()).toStdString());
+    rows.push_back(makeDrumReleaseReportRow(mainFile, "main", "MULTI", "8-bar deterministic drum RC groove",
+                                            mainBuffer, "slow groove, fast hats, cinematic fill, electro outro", true));
+
+    for (int stemIndex = 0; stemIndex < kDrumReleaseStemCount; ++stemIndex)
+    {
+        const auto stemName = drumReleaseStemName(stemIndex);
+        const auto file = stemsDir.getChildFile(stemName + ".wav");
+        auto& buffer = stems[static_cast<std::size_t>(stemIndex)];
+        if (!writeWav(file, buffer))
+            throw std::runtime_error(("Failed to write drum release stem WAV: " + file.getFullPathName()).toStdString());
+
+        rows.push_back(makeDrumReleaseReportRow(file, "stem", "MULTI", stemName, buffer,
+                                                "stem from release groove suite", false));
+    }
+
+    for (int pad = 0; pad < mds::kNumPads; ++pad)
+    {
+        const auto& kit = identityKitForPad(pad);
+        std::vector<ScheduledPadEvent> events { { 0, pad, 0.88f } };
+        auto buffer = renderScheduledPads(kit, events, 3.0);
+        applyMasterFxChain(buffer, kit.fx);
+        scaleBufferToPeak(buffer, 0.62f, true);
+
+        const auto padName = juce::String(mds::kPadNames[static_cast<std::size_t>(pad)]);
+        const auto file = identityDir.getChildFile(twoDigit(pad) + "_" + slug(padName) + ".wav");
+        if (!writeWav(file, buffer))
+            throw std::runtime_error(("Failed to write drum release identity WAV: " + file.getFullPathName()).toStdString());
+
+        rows.push_back(makeDrumReleaseReportRow(file, "identity", juce::String(kit.name),
+                                                padName, buffer, "single-pad identity render", false));
+    }
+
+    writeDrumReleaseReport(reportFile, rows);
+
+    int fails = 0;
+    for (const auto& row : rows)
+        if (row.status != "PASS")
+            ++fails;
+
+    const auto identityCount = std::count_if(rows.begin(), rows.end(), [] (const DrumReleaseReportRow& row)
+    {
+        return row.type == "identity";
+    });
+    if (identityCount != mds::kNumPads)
+        ++fails;
+
+    std::cout << "Drum release suite: " << (static_cast<int>(rows.size()) - fails)
+              << "/" << rows.size() << " checks passed";
+    if (fails > 0)
+        std::cout << "  (" << fails << " failed)";
+    std::cout << "\nOutput: " << outputBase.getFullPathName()
+              << "\nReport: " << reportFile.getFullPathName() << "\n";
+    return fails > 0 ? 1 : 0;
+}
 } // namespace
 
 // =============================================================================
 // --validate-presets : render one hit per kit/pad, check peak / NaN / Inf
 // =============================================================================
-static int runValidatePresets()
+static int runValidatePresets(const juce::String& reportPath = {})
 {
     using namespace mds;
     constexpr float kMinPeakDb = musique::qa::kMinimumAudiblePeakDb;
@@ -1389,10 +1813,12 @@ static int runValidatePresets()
     int fails = 0;
     int checks = 0;
     juce::StringArray reportLines;
-    reportLines.add("kit_name,family,mix_role,output_profile,nominal_peak_db,measured_peak_db,rms_db,crest_db,tail_ms,stereo_width,metadata_complete,tags");
+    reportLines.add("kit_name,family,mix_role,output_profile,nominal_peak_db,measured_peak_db,rms_db,crest_db,tail_ms,stereo_width,metadata_complete,status,tags");
 
     for (const auto& kit : getFactoryPresets())
     {
+        const int kitFailsAtStart = fails;
+
         for (int pad = 0; pad < kNumPads; ++pad)
         {
             const auto& settings = kit.pads[static_cast<std::size_t>(pad)];
@@ -1531,23 +1957,6 @@ static int runValidatePresets()
         const auto crestDb = kitMetrics.peakDb - kitMetrics.rmsDb;
         const bool metadataComplete = hasCompleteMetadata(kit);
 
-        juce::StringArray tagValues;
-        for (const auto& tag : kit.tags)
-            tagValues.add(juce::String(tag));
-
-        reportLines.add(csvEscape(juce::String(kit.name)) + ","
-                        + csvEscape(juce::String(kit.familyLabel)) + ","
-                        + csvEscape(juce::String(kit.mixRole)) + ","
-                        + csvEscape(juce::String(kit.outputProfile)) + ","
-                        + juce::String(kit.nominalPeakDb, 2) + ","
-                        + juce::String(kitMetrics.peakDb, 2) + ","
-                        + juce::String(kitMetrics.rmsDb, 2) + ","
-                        + juce::String(crestDb, 2) + ","
-                        + juce::String(kitMetrics.tailMs, 2) + ","
-                        + juce::String(kitMetrics.stereoWidth, 4) + ","
-                        + juce::String(metadataComplete ? "true" : "false") + ","
-                        + csvEscape(tagValues.joinIntoString(";")));
-
         ++checks;
         if (!metadataComplete)
         {
@@ -1571,9 +1980,31 @@ static int runValidatePresets()
                       << " : nominal peak mismatch (measured " << kitMetrics.peakDb
                       << " dBFS, target " << kit.nominalPeakDb << " dBFS)\n";
         }
+
+        juce::StringArray tagValues;
+        for (const auto& tag : kit.tags)
+            tagValues.add(juce::String(tag));
+
+        const bool kitPassed = fails == kitFailsAtStart;
+        reportLines.add(csvEscape(juce::String(kit.name)) + ","
+                        + csvEscape(juce::String(kit.familyLabel)) + ","
+                        + csvEscape(juce::String(kit.mixRole)) + ","
+                        + csvEscape(juce::String(kit.outputProfile)) + ","
+                        + juce::String(kit.nominalPeakDb, 2) + ","
+                        + juce::String(kitMetrics.peakDb, 2) + ","
+                        + juce::String(kitMetrics.rmsDb, 2) + ","
+                        + juce::String(crestDb, 2) + ","
+                        + juce::String(kitMetrics.tailMs, 2) + ","
+                        + juce::String(kitMetrics.stereoWidth, 4) + ","
+                        + juce::String(metadataComplete ? "true" : "false") + ","
+                        + juce::String(kitPassed ? "OK" : "FAIL") + ","
+                        + csvEscape(tagValues.joinIntoString(";")));
     }
 
-    const auto reportFile = getQaDirectory().getChildFile("drum_preset_qa_report.csv");
+    const auto reportFile = reportPath.isNotEmpty()
+        ? juce::File(reportPath)
+        : getQaDirectory().getChildFile("drum_preset_qa_report.csv");
+    reportFile.getParentDirectory().createDirectory();
     reportFile.replaceWithText(reportLines.joinIntoString("\n"));
 
     std::cout << "Preset validation: " << (checks - fails) << "/" << checks << " passed";
@@ -1649,7 +2080,7 @@ static void runValidateMatrix()
 // =============================================================================
 // --benchmark : render 64 voices of each model on a 512-sample buffer
 // =============================================================================
-static int runBenchmark(const juce::String& baselineCsvPath = {})
+static int runBenchmark(const juce::String& baselineCsvPath = {}, const juce::String& reportPath = {})
 {
     struct BenchmarkScenario
     {
@@ -1821,7 +2252,10 @@ static int runBenchmark(const juce::String& baselineCsvPath = {})
                         + (baselineCpuPct > 0.0 ? juce::String(regressionPct, 2) : juce::String()));
     }
 
-    const auto reportFile = getQaDirectory().getChildFile("drum_cpu_benchmark.csv");
+    const auto reportFile = reportPath.isNotEmpty()
+        ? juce::File(reportPath)
+        : getQaDirectory().getChildFile("drum_cpu_benchmark.csv");
+    reportFile.getParentDirectory().createDirectory();
     reportFile.replaceWithText(reportLines.joinIntoString("\n"));
 
     std::cout << "Peak CPU across scenarios: " << maxCpuPct << "% (target < 5%)\n";
@@ -1835,8 +2269,10 @@ int main(int argc, char* argv[])
     {
         std::cout << "Usage: UWdeVST_drum_renderer <manifest.csv> [--output-base <dir>] [--limit <n>] [--overwrite]\n"
                      "       UWdeVST_drum_renderer --validate-matrix\n"
-                     "       UWdeVST_drum_renderer --validate-presets\n"
-                     "       UWdeVST_drum_renderer --benchmark [--baseline <benchmark.csv>]\n";
+                     "       UWdeVST_drum_renderer --validate-presets [--report <preset_qa.csv>]\n"
+                     "       UWdeVST_drum_renderer --benchmark [--baseline <benchmark.csv>] [--report <benchmark.csv>]\n"
+                     "       UWdeVST_drum_renderer --render-release-suite [--output-base <dir>] [--report <csv>]\n"
+                     "       UWdeVST_drum_renderer --render-pad-presets [--output-base <dir>] [--overwrite]\n";
         return 1;
     }
 
@@ -1847,17 +2283,178 @@ int main(int argc, char* argv[])
         return 0;
     }
     if (firstArg == "--validate-presets")
-        return runValidatePresets();
+    {
+        juce::String reportPath;
+        for (int i = 2; i < argc; ++i)
+        {
+            const juce::String key(argv[i]);
+            if (key == "--report" && i + 1 < argc)
+                reportPath = juce::String(argv[++i]);
+        }
+        return runValidatePresets(reportPath);
+    }
     if (firstArg == "--benchmark")
     {
         juce::String baselinePath;
+        juce::String reportPath;
         for (int i = 2; i < argc; ++i)
         {
             const juce::String key(argv[i]);
             if (key == "--baseline" && i + 1 < argc)
                 baselinePath = juce::String(argv[++i]);
+            else if (key == "--report" && i + 1 < argc)
+                reportPath = juce::String(argv[++i]);
         }
-        return runBenchmark(baselinePath);
+        return runBenchmark(baselinePath, reportPath);
+    }
+    if (firstArg == "--render-release-suite")
+    {
+        auto outputBase = juce::File::getCurrentWorkingDirectory().getChildFile("qa/drum_release_suite");
+        auto reportFile = juce::File::getCurrentWorkingDirectory().getChildFile("qa/drum_release_suite_report.csv");
+        for (int i = 2; i < argc; ++i)
+        {
+            const juce::String key(argv[i]);
+            if (key == "--output-base" && i + 1 < argc)
+                outputBase = juce::File(argv[++i]);
+            else if (key == "--report" && i + 1 < argc)
+                reportFile = juce::File(argv[++i]);
+        }
+        return runRenderReleaseSuite(outputBase, reportFile);
+    }
+    if (firstArg == "--render-pad-presets")
+    {
+        using namespace mds;
+        juce::File outputBase = juce::File::getCurrentWorkingDirectory().getChildFile("pad_preset_samples");
+        bool overwrite = false;
+
+        for (int i = 2; i < argc; ++i)
+        {
+            const juce::String key(argv[i]);
+            if (key == "--output-base" && i + 1 < argc) outputBase = juce::File(argv[++i]);
+            else if (key == "--overwrite") overwrite = true;
+        }
+
+        int rendered = 0;
+        int total = 0;
+        for (int pad = 0; pad < kNumPads; ++pad)
+        {
+            const auto& presets = getFactoryPadPresets(pad);
+            total += static_cast<int>(presets.size());
+        }
+
+        for (int pad = 0; pad < kNumPads; ++pad)
+        {
+            const auto& padName = kPadNames[static_cast<std::size_t>(pad)];
+            const auto& presets = getFactoryPadPresets(pad);
+
+            for (std::size_t p = 0; p < presets.size(); ++p)
+            {
+                const auto& preset = presets[p];
+                const auto slugName = slug(juce::String(preset.name.c_str()));
+                const auto padSlug = slug(juce::String(padName));
+                const auto relativePath = padSlug + "/" + slugName + ".wav";
+                const auto outputFile = outputBase.getChildFile(relativePath.replaceCharacter('/', juce::File::getSeparatorChar()));
+
+                if (outputFile.existsAsFile() && !overwrite)
+                {
+                    ++rendered;
+                    continue;
+                }
+
+                const auto& settings = preset.settings;
+                const float duration = settings.decaySeconds * 2.2f + 0.15f;
+                const int renderSamples = std::max(1, static_cast<int>(std::ceil((duration + 0.5) * kSampleRate)));
+                juce::AudioBuffer<float> buffer(2, renderSamples);
+                buffer.clear();
+
+                auto voice = createVoiceForModel(settings.voiceModel);
+                if (voice != nullptr)
+                {
+                    voice->start(settings, 0.85f, kSampleRate);
+                    voice->render(buffer, 0, renderSamples);
+                }
+
+                FxSettings fx;
+                const auto& presetFx = preset.fx;
+                fx.compThresholdDb = presetFx.compThreshold;
+                fx.compRatio = presetFx.compRatio;
+                fx.compAttackMs = presetFx.compAttack;
+                fx.compReleaseMs = presetFx.compRelease;
+                fx.compMix = presetFx.compMix;
+                fx.satDrive = presetFx.satDrive;
+                fx.satMix = presetFx.satMix;
+                fx.transientAttack = presetFx.transientAttack;
+                fx.transientSustain = presetFx.transientSustain;
+                fx.transientMix = presetFx.transientMix;
+                fx.reverbSize = presetFx.reverbSize;
+                fx.reverbDamping = presetFx.reverbDamping;
+                fx.reverbWidth = presetFx.reverbWidth;
+                fx.reverbWet = presetFx.reverbMix;
+                fx.reverbPredelay = presetFx.reverbPredelay;
+                fx.eqEnable = presetFx.eqEnable;
+                fx.eqLowFreq = presetFx.eqLowFreq;
+                fx.eqLowGain = presetFx.eqLowGain;
+                fx.eqMidFreq = presetFx.eqMidFreq;
+                fx.eqMidGain = presetFx.eqMidGain;
+                fx.eqMidQ = presetFx.eqMidQ;
+                fx.eqHighFreq = presetFx.eqHighFreq;
+                fx.eqHighGain = presetFx.eqHighGain;
+                fx.targetPeak = 0.92f;
+
+                applyTransient(buffer, fx);
+                applySaturator(buffer, fx);
+                applyEQ(buffer, fx);
+                applyCompressor(buffer, fx);
+                applyStereoWidth(buffer, fx);
+                if (presetFx.reverbMix > 0.001f)
+                    applyReverb(buffer, fx);
+                applyDcHighPass(buffer);
+
+                int first = 0;
+                int last = renderSamples - 1;
+                auto magnitudeAt = [&buffer](const int sample)
+                {
+                    float mag = 0.0f;
+                    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+                        mag = juce::jmax(mag, std::abs(buffer.getSample(ch, sample)));
+                    return mag;
+                };
+                while (first < renderSamples && magnitudeAt(first) < 0.0007f) ++first;
+                while (last > first && magnitudeAt(last) < 0.0007f) --last;
+                first = juce::jmax(0, first - 48);
+                last = juce::jmin(renderSamples - 1, last + 900);
+                const auto newLength = juce::jmax(1, last - first + 1);
+                juce::AudioBuffer<float> trimmed(2, newLength);
+                for (int ch = 0; ch < 2; ++ch)
+                    trimmed.copyFrom(ch, 0, buffer, ch, first, newLength);
+                buffer.makeCopyOf(trimmed);
+
+                const auto fadeIn = juce::jmin(48, buffer.getNumSamples() / 6);
+                const auto fadeOut = juce::jmin(160, buffer.getNumSamples() / 3);
+                for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+                {
+                    if (fadeIn > 0)
+                        buffer.applyGainRamp(ch, 0, fadeIn, 0.0f, 1.0f);
+                    if (fadeOut > 0)
+                        buffer.applyGainRamp(ch, buffer.getNumSamples() - fadeOut, fadeOut, 1.0f, 0.0f);
+                }
+
+                float peak = 0.0f;
+                for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+                    peak = juce::jmax(peak, buffer.getMagnitude(ch, 0, buffer.getNumSamples()));
+                if (peak > 0.0001f)
+                    buffer.applyGain(fx.targetPeak / peak);
+
+                if (!writeWav(outputFile, buffer))
+                    std::cerr << "Failed to write: " << outputFile.getFullPathName() << "\n";
+
+                ++rendered;
+                std::cout << "[" << rendered << "/" << total << "] " << padName << " / " << preset.name << "\n";
+            }
+        }
+
+        std::cout << "Rendered " << rendered << " pad preset WAV files into " << outputBase.getFullPathName() << "\n";
+        return 0;
     }
 
     const juce::File manifestFile(argv[1]);
@@ -1884,7 +2481,10 @@ int main(int argc, char* argv[])
         {
             const auto padIndex = padIndexFromName(job.instrument);
             if (padIndex < 0)
-                throw std::runtime_error(("Unknown drum pad: " + job.instrument).toStdString());
+            {
+                std::cerr << "[WARN] Unknown drum pad in manifest: " << job.instrument << " -> skipped\n";
+                continue;
+            }
 
             const auto outputFile = outputBase.getChildFile(job.finalRelativePath.replaceCharacter('/', juce::File::getSeparatorChar()));
             if (outputFile.existsAsFile() && !overwrite)

@@ -515,13 +515,13 @@ void MetallicDrumVoice::renderModel(float& body, float& noise, float& click, flo
 const MetallicDrumVoice::MetallicConfig& HatVoice::metallicConfig() const
 {
     //                                   idx crash  base   mod    noise  click  trans
-    static constexpr MetallicConfig cfg = { 3, false, 0.10f, 0.10f, 0.52f, 0.16f, 0.10f };
+    static constexpr MetallicConfig cfg = { 3, false, 0.16f, 0.18f, 0.72f, 0.08f, 0.10f };
     return cfg;
 }
 
 const MetallicDrumVoice::MetallicConfig& CrashVoice::metallicConfig() const
 {
-    static constexpr MetallicConfig cfg = { 7, true, 0.12f, 0.14f, 0.40f, 0.04f, 0.05f };
+    static constexpr MetallicConfig cfg = { 7, true, 0.18f, 0.22f, 0.52f, 0.025f, 0.05f };
     return cfg;
 }
 

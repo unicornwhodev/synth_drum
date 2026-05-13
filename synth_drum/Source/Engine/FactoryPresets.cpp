@@ -622,21 +622,178 @@ static KitPreset makeKit_Moderne_Electro()
 }
 
 // =========================================================================
-// Per-pad presets (5-10 per pad slot)
+// Per-pad presets — 20 per slot, with per-preset FX
 // =========================================================================
+
+// FX profile helpers — reusable baselines for per-preset effects
+static GlobalFxSettings fxDefault()
+{
+    GlobalFxSettings fx;
+    fx.limiterEnable = true;
+    fx.limiterThreshold = -0.5f;
+    return fx;
+}
+
+static GlobalFxSettings fxPunch()
+{
+    auto fx = fxDefault();
+    fx.compThreshold = -14.0f; fx.compRatio = 2.8f; fx.compAttack = 8.0f;
+    fx.compRelease = 100.0f; fx.compMix = 0.40f;
+    fx.transientAttack = 0.18f; fx.transientSustain = -0.02f; fx.transientMix = 0.22f;
+    fx.satDrive = 1.08f; fx.satMix = 0.04f;
+    return fx;
+}
+
+static GlobalFxSettings fxWarm()
+{
+    auto fx = fxDefault();
+    fx.satDrive = 1.30f; fx.satMix = 0.14f;
+    fx.compThreshold = -16.0f; fx.compRatio = 1.8f; fx.compAttack = 20.0f;
+    fx.compRelease = 180.0f; fx.compMix = 0.25f;
+    fx.eqEnable = true; fx.eqLowFreq = 100.0f; fx.eqLowGain = 2.0f;
+    fx.eqHighFreq = 6000.0f; fx.eqHighGain = -1.5f;
+    return fx;
+}
+
+static GlobalFxSettings fxRoom()
+{
+    auto fx = fxDefault();
+    fx.reverbSize = 0.45f; fx.reverbDamping = 0.60f; fx.reverbWidth = 0.80f;
+    fx.reverbMix = 0.22f; fx.reverbPredelay = 14.0f;
+    fx.compThreshold = -15.0f; fx.compRatio = 1.8f; fx.compMix = 0.20f;
+    return fx;
+}
+
+static GlobalFxSettings fxCrunch()
+{
+    auto fx = fxDefault();
+    fx.satDrive = 1.80f; fx.satMix = 0.20f;
+    fx.compThreshold = -10.0f; fx.compRatio = 3.5f; fx.compAttack = 6.0f;
+    fx.compRelease = 80.0f; fx.compMix = 0.50f;
+    fx.transientAttack = 0.12f; fx.transientMix = 0.16f;
+    return fx;
+}
+
+static GlobalFxSettings fxDist()
+{
+    auto fx = fxDefault();
+    fx.satDrive = 2.40f; fx.satMix = 0.30f;
+    fx.compThreshold = -8.0f; fx.compRatio = 4.0f; fx.compAttack = 4.0f;
+    fx.compRelease = 60.0f; fx.compMix = 0.55f;
+    fx.transientAttack = 0.10f; fx.transientMix = 0.14f;
+    return fx;
+}
+
+static GlobalFxSettings fxClean()
+{
+    auto fx = fxDefault();
+    fx.compThreshold = -18.0f; fx.compRatio = 1.5f; fx.compAttack = 24.0f;
+    fx.compRelease = 200.0f; fx.compMix = 0.12f;
+    fx.satDrive = 1.04f; fx.satMix = 0.02f;
+    return fx;
+}
+
+static GlobalFxSettings fxHall()
+{
+    auto fx = fxDefault();
+    fx.reverbSize = 0.65f; fx.reverbDamping = 0.50f; fx.reverbWidth = 0.90f;
+    fx.reverbMix = 0.35f; fx.reverbPredelay = 22.0f;
+    fx.compThreshold = -16.0f; fx.compRatio = 1.6f; fx.compMix = 0.15f;
+    return fx;
+}
+
+static GlobalFxSettings fxElectro()
+{
+    auto fx = fxDefault();
+    fx.chorusEnable = true; fx.chorusRate = 2.2f; fx.chorusDepth = 0.5f; fx.chorusMix = 0.15f;
+    fx.compThreshold = -12.0f; fx.compRatio = 2.5f; fx.compAttack = 10.0f;
+    fx.compRelease = 120.0f; fx.compMix = 0.35f;
+    fx.satDrive = 1.15f; fx.satMix = 0.06f;
+    return fx;
+}
+
+static GlobalFxSettings fxTransient()
+{
+    auto fx = fxDefault();
+    fx.transientAttack = 0.25f; fx.transientSustain = -0.04f; fx.transientMix = 0.28f;
+    fx.compThreshold = -14.0f; fx.compRatio = 2.2f; fx.compMix = 0.25f;
+    return fx;
+}
+
+static GlobalFxSettings fxSub()
+{
+    auto fx = fxDefault();
+    fx.eqEnable = true; fx.eqLowFreq = 80.0f; fx.eqLowGain = 3.0f;
+    fx.eqHighFreq = 4000.0f; fx.eqHighGain = -3.0f;
+    fx.compThreshold = -12.0f; fx.compRatio = 2.5f; fx.compMix = 0.30f;
+    fx.satDrive = 1.06f; fx.satMix = 0.03f;
+    return fx;
+}
 
 static std::vector<PadPreset> makeKickPresets()
 {
     const float f = kPadCharacteristics[0].baseFrequencyHz;
     return {
-        { "Kick Deep",     makePad(0.90f,  0.0f, 0.40f, 0.0004f,  6.0f, 0.040f, 0.003f, 0.08f, 1.02f, 2200.0f, 0.0f, f, PadVoiceModel::Kick) },
-        { "Kick Punchy",   makePad(0.88f,  1.0f, 0.26f, 0.0003f,  8.0f, 0.028f, 0.004f, 0.14f, 1.08f, 2800.0f, 0.0f, f, PadVoiceModel::Kick) },
-        { "Kick Tight",    makePad(0.86f,  2.0f, 0.16f, 0.0003f,  6.0f, 0.022f, 0.004f, 0.18f, 1.05f, 3200.0f, 0.0f, f, PadVoiceModel::Kick) },
-        { "Kick808",       makePad(0.92f, -2.0f, 0.60f, 0.0005f, 14.0f, 0.055f, 0.002f, 0.05f, 1.00f, 1200.0f, 0.0f, f, PadVoiceModel::Kick) },
-        { "Kick Click",    makePad(0.82f,  3.0f, 0.20f, 0.0002f,  5.0f, 0.025f, 0.002f, 0.28f, 1.04f, 4000.0f, 0.0f, f, PadVoiceModel::Kick) },
-        { "Kick Room",     makePad(0.84f,  0.0f, 0.45f, 0.0005f,  4.0f, 0.042f, 0.010f, 0.10f, 1.01f, 2000.0f, 0.0f, f, PadVoiceModel::Kick) },
-        { "Kick Sub",      makePad(0.94f, -4.0f, 0.55f, 0.0006f, 10.0f, 0.060f, 0.002f, 0.06f, 1.00f, 1000.0f, 0.0f, f, PadVoiceModel::Kick) },
-        { "Kick Layered",  makePad(0.88f,  1.5f, 0.30f, 0.0003f,  7.0f, 0.032f, 0.006f, 0.20f, 1.06f, 2600.0f, 0.0f, f, PadVoiceModel::Kick) },
+        { "Kick Deep",
+          makePad(0.90f, 0.0f, 0.45f, 0.0006f, 5.0f, 0.048f, 0.002f, 0.05f, 1.00f, 1800.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxSub() },
+        { "Kick Punchy",
+          makePad(0.88f, 1.0f, 0.24f, 0.0002f, 9.0f, 0.024f, 0.004f, 0.16f, 1.08f, 3200.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxPunch() },
+        { "Kick Tight",
+          makePad(0.86f, 2.0f, 0.12f, 0.0002f, 4.0f, 0.016f, 0.005f, 0.22f, 1.06f, 3800.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxTransient() },
+        { "Kick 808",
+          makePad(0.94f, -2.0f, 0.65f, 0.0008f, 16.0f, 0.065f, 0.001f, 0.03f, 1.00f, 1000.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxSub() },
+        { "Kick Click",
+          makePad(0.82f, 3.0f, 0.18f, 0.0001f, 6.0f, 0.020f, 0.002f, 0.32f, 1.04f, 4400.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxTransient() },
+        { "Kick Room",
+          makePad(0.84f, 0.0f, 0.40f, 0.0005f, 4.0f, 0.040f, 0.010f, 0.10f, 1.02f, 2200.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxRoom() },
+        { "Kick Sub",
+          makePad(0.96f, -5.0f, 0.70f, 0.001f, 18.0f, 0.072f, 0.001f, 0.02f, 1.00f, 800.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxSub() },
+        { "Kick Layered",
+          makePad(0.88f, 1.5f, 0.28f, 0.0003f, 7.0f, 0.030f, 0.006f, 0.18f, 1.06f, 2800.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxPunch() },
+        { "Kick Soft",
+          makePad(0.72f, -1.0f, 0.38f, 0.0008f, 2.5f, 0.042f, 0.002f, 0.03f, 1.00f, 1600.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxClean() },
+        { "Kick Distort",
+          makePad(0.86f, 0.0f, 0.20f, 0.0002f, 7.0f, 0.022f, 0.010f, 0.12f, 2.80f, 2600.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxDist() },
+        { "Kick Acoustic",
+          makePad(0.80f, 0.5f, 0.35f, 0.0006f, 4.0f, 0.038f, 0.015f, 0.10f, 1.04f, 2000.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxRoom() },
+        { "Kick Electro",
+          makePad(0.88f, 2.0f, 0.16f, 0.0002f, 12.0f, 0.018f, 0.002f, 0.14f, 1.10f, 3600.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxElectro() },
+        { "Kick Muffled",
+          makePad(0.82f, -1.5f, 0.42f, 0.0007f, 4.0f, 0.046f, 0.003f, 0.04f, 1.02f, 1200.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxClean() },
+        { "Kick Resonant",
+          makePad(0.86f, 0.0f, 0.48f, 0.0005f, 8.0f, 0.055f, 0.004f, 0.08f, 1.06f, 2000.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxWarm() },
+        { "Kick Slap",
+          makePad(0.84f, 3.5f, 0.10f, 0.0001f, 6.0f, 0.014f, 0.003f, 0.35f, 1.08f, 4000.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxPunch() },
+        { "Kick Boomy",
+          makePad(0.92f, -3.0f, 0.58f, 0.0008f, 10.0f, 0.062f, 0.002f, 0.04f, 1.00f, 900.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxHall() },
+        { "Kick Pop",
+          makePad(0.86f, 1.0f, 0.22f, 0.0003f, 7.5f, 0.026f, 0.004f, 0.15f, 1.06f, 3000.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxPunch() },
+        { "Kick Industrial",
+          makePad(0.88f, -0.5f, 0.18f, 0.0002f, 9.0f, 0.020f, 0.014f, 0.10f, 3.20f, 2400.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxDist() },
+        { "Kick Warm",
+          makePad(0.84f, -0.5f, 0.38f, 0.0006f, 3.5f, 0.042f, 0.004f, 0.07f, 1.08f, 1500.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxWarm() },
+        { "Kick Ghost",
+          makePad(0.60f, 0.0f, 0.15f, 0.0005f, 2.0f, 0.020f, 0.002f, 0.02f, 1.00f, 2200.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxClean() },
     };
 }
 
@@ -644,12 +801,66 @@ static std::vector<PadPreset> makeKickBPresets()
 {
     const float f = kPadCharacteristics[1].baseFrequencyHz;
     return {
-        { "Kick B Short",    makePad(0.70f,  6.0f, 0.12f, 0.0003f, 3.0f, 0.022f, 0.003f, 0.22f, 1.02f, 2400.0f, 0.0f, f, PadVoiceModel::Kick) },
-        { "Kick B Mid",      makePad(0.72f,  5.0f, 0.18f, 0.0004f, 2.5f, 0.026f, 0.003f, 0.20f, 1.02f, 2200.0f, 0.0f, f, PadVoiceModel::Kick) },
-        { "Kick B Accent",   makePad(0.80f,  4.0f, 0.16f, 0.0003f, 4.0f, 0.024f, 0.004f, 0.24f, 1.06f, 2800.0f, 0.0f, f, PadVoiceModel::Kick) },
-        { "Kick B Hard",     makePad(0.76f,  7.0f, 0.14f, 0.0002f, 5.0f, 0.020f, 0.003f, 0.30f, 1.10f, 3000.0f, 0.0f, f, PadVoiceModel::Kick) },
-        { "Kick B Jazzy",    makePad(0.64f,  3.0f, 0.22f, 0.0005f, 1.5f, 0.032f, 0.008f, 0.18f, 1.00f, 1800.0f, 0.0f, f, PadVoiceModel::Kick) },
-        { "Kick B Boomy",    makePad(0.74f,  2.0f, 0.28f, 0.0005f, 2.0f, 0.038f, 0.005f, 0.14f, 1.01f, 1600.0f, 0.0f, f, PadVoiceModel::Kick) },
+        { "Kick B Short",
+          makePad(0.70f, 6.0f, 0.10f, 0.0002f, 3.0f, 0.018f, 0.003f, 0.24f, 1.04f, 2800.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxTransient() },
+        { "Kick B Mid",
+          makePad(0.72f, 5.0f, 0.16f, 0.0003f, 2.5f, 0.024f, 0.003f, 0.20f, 1.02f, 2400.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxPunch() },
+        { "Kick B Accent",
+          makePad(0.82f, 4.0f, 0.14f, 0.0002f, 5.0f, 0.020f, 0.004f, 0.28f, 1.08f, 3200.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxPunch() },
+        { "Kick B Hard",
+          makePad(0.76f, 7.0f, 0.11f, 0.0001f, 6.0f, 0.016f, 0.003f, 0.34f, 1.12f, 3600.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxCrunch() },
+        { "Kick B Jazzy",
+          makePad(0.62f, 3.0f, 0.24f, 0.0006f, 1.2f, 0.034f, 0.010f, 0.16f, 1.00f, 1600.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxRoom() },
+        { "Kick B Boomy",
+          makePad(0.74f, 2.0f, 0.32f, 0.0007f, 2.0f, 0.042f, 0.004f, 0.12f, 1.01f, 1400.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxHall() },
+        { "Kick B Soft",
+          makePad(0.58f, 4.0f, 0.18f, 0.0006f, 1.5f, 0.028f, 0.002f, 0.10f, 1.00f, 1800.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxClean() },
+        { "Kick B Snap",
+          makePad(0.72f, 6.5f, 0.08f, 0.0001f, 4.0f, 0.014f, 0.002f, 0.30f, 1.06f, 3800.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxTransient() },
+        { "Kick B Dist",
+          makePad(0.74f, 5.0f, 0.13f, 0.0002f, 4.5f, 0.020f, 0.008f, 0.18f, 2.60f, 2600.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxDist() },
+        { "Kick B Sub",
+          makePad(0.78f, 1.0f, 0.36f, 0.0008f, 4.0f, 0.044f, 0.002f, 0.08f, 1.00f, 1200.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxSub() },
+        { "Kick B Clicky",
+          makePad(0.70f, 7.5f, 0.10f, 0.0001f, 3.5f, 0.016f, 0.002f, 0.36f, 1.08f, 4000.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxTransient() },
+        { "Kick B Fat",
+          makePad(0.76f, 3.5f, 0.26f, 0.0004f, 3.0f, 0.036f, 0.005f, 0.14f, 1.04f, 2000.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxWarm() },
+        { "Kick B Ring",
+          makePad(0.72f, 4.5f, 0.34f, 0.0006f, 2.0f, 0.044f, 0.003f, 0.10f, 1.02f, 1500.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxHall() },
+        { "Kick B Attack",
+          makePad(0.74f, 6.0f, 0.09f, 0.0001f, 7.0f, 0.012f, 0.002f, 0.30f, 1.10f, 4200.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxPunch() },
+        { "Kick B Loose",
+          makePad(0.66f, 3.0f, 0.28f, 0.0006f, 1.8f, 0.038f, 0.006f, 0.12f, 1.01f, 1700.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxRoom() },
+        { "Kick B Dry",
+          makePad(0.70f, 5.0f, 0.12f, 0.0002f, 3.0f, 0.020f, 0.002f, 0.18f, 1.04f, 2600.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxClean() },
+        { "Kick B Pop",
+          makePad(0.72f, 4.0f, 0.15f, 0.0003f, 4.0f, 0.024f, 0.003f, 0.22f, 1.06f, 2800.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxPunch() },
+        { "Kick B Analog",
+          makePad(0.70f, 3.5f, 0.22f, 0.0005f, 2.5f, 0.032f, 0.005f, 0.14f, 1.06f, 2000.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxWarm() },
+        { "Kick B Tight 2",
+          makePad(0.68f, 6.0f, 0.07f, 0.0001f, 4.5f, 0.012f, 0.002f, 0.26f, 1.06f, 4000.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxTransient() },
+        { "Kick B Ghost",
+          makePad(0.50f, 5.0f, 0.13f, 0.0005f, 1.8f, 0.024f, 0.002f, 0.08f, 1.00f, 2000.0f, 0.0f, f, PadVoiceModel::Kick),
+          fxClean() },
     };
 }
 
@@ -657,14 +868,66 @@ static std::vector<PadPreset> makeSnarePresets()
 {
     const float f = kPadCharacteristics[2].baseFrequencyHz;
     return {
-        { "Snare Crisp",    makePad(0.76f,  8.0f, 0.09f, 0.0002f, 0.3f, 0.011f, 0.65f, 0.07f, 1.02f, 6400.0f, -0.02f, f, PadVoiceModel::Snare) },
-        { "Snare Fat",      makePad(0.78f,  6.0f, 0.14f, 0.0003f, 0.2f, 0.015f, 0.60f, 0.05f, 1.01f, 5200.0f, -0.02f, f, PadVoiceModel::Snare) },
-        { "Snare Tight",    makePad(0.74f, 10.0f, 0.07f, 0.0002f, 0.1f, 0.008f, 0.68f, 0.08f, 1.04f, 7000.0f, -0.02f, f, PadVoiceModel::Snare) },
-        { "Snare Punchy",   makePad(0.80f,  7.0f, 0.10f, 0.0002f, 0.4f, 0.010f, 0.62f, 0.10f, 1.06f, 6000.0f, -0.02f, f, PadVoiceModel::Snare) },
-        { "Snare Sidestick",makePad(0.70f, 12.0f, 0.06f, 0.0001f, 0.0f, 0.007f, 0.55f, 0.15f, 1.02f, 8000.0f,  0.02f, f, PadVoiceModel::Snare) },
-        { "Snare Brush",    makePad(0.68f,  5.0f, 0.13f, 0.0003f, 0.1f, 0.016f, 0.78f, 0.01f, 1.00f, 4200.0f, -0.02f, f, PadVoiceModel::Snare) },
-        { "Snare Half-Time",makePad(0.74f,  6.0f, 0.18f, 0.0003f, 0.2f, 0.018f, 0.58f, 0.05f, 1.01f, 5600.0f, -0.02f, f, PadVoiceModel::Snare) },
-        { "Snare Dull",     makePad(0.72f,  4.0f, 0.12f, 0.0003f, 0.1f, 0.014f, 0.52f, 0.04f, 1.01f, 4800.0f, -0.02f, f, PadVoiceModel::Snare) },
+        { "Snare Crack",
+          makePad(0.82f, 12.0f, 0.03f, 0.0001f, 0.5f, 0.004f, 0.90f, 0.20f, 1.40f, 11000.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxTransient() },
+        { "Snare Fat",
+          makePad(0.80f, 3.0f, 0.22f, 0.0004f, 0.8f, 0.024f, 0.30f, 0.04f, 1.20f, 3200.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxWarm() },
+        { "Snare Gated",
+          makePad(0.76f, 8.0f, 0.15f, 0.0002f, 1.0f, 0.012f, 0.80f, 0.08f, 1.80f, 6000.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxCrunch() },
+        { "Snare Brush",
+          makePad(0.68f, 2.0f, 0.30f, 0.0005f, 0.3f, 0.028f, 0.92f, 0.01f, 1.00f, 3000.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxRoom() },
+        { "Snare 808",
+          makePad(0.74f, -2.0f, 0.18f, 0.0003f, 0.5f, 0.020f, 0.20f, 0.03f, 1.10f, 2800.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxSub() },
+        { "Snare Tight",
+          makePad(0.76f, 10.0f, 0.03f, 0.0001f, 0.2f, 0.004f, 0.85f, 0.18f, 1.10f, 10000.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxClean() },
+        { "Snare Ring",
+          makePad(0.72f, 6.0f, 0.35f, 0.0004f, 1.5f, 0.030f, 0.50f, 0.04f, 1.10f, 3500.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxHall() },
+        { "Snare Dist",
+          makePad(0.82f, 7.0f, 0.10f, 0.0002f, 0.8f, 0.010f, 0.75f, 0.10f, 3.20f, 6500.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxDist() },
+        { "Snare Side",
+          makePad(0.72f, 14.0f, 0.04f, 0.0001f, 0.0f, 0.004f, 0.15f, 0.25f, 1.20f, 12000.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxClean() },
+        { "Snare Dark",
+          makePad(0.70f, -4.0f, 0.25f, 0.0004f, 0.5f, 0.024f, 0.45f, 0.02f, 1.05f, 2000.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxWarm() },
+        { "Snare Pop",
+          makePad(0.78f, 8.0f, 0.06f, 0.0002f, 0.4f, 0.007f, 0.55f, 0.15f, 1.30f, 7500.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxPunch() },
+        { "Snare Lo-Fi",
+          makePad(0.72f, 4.0f, 0.12f, 0.0003f, 0.6f, 0.012f, 0.70f, 0.06f, 2.00f, 2400.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxWarm() },
+        { "Snare Ghost",
+          makePad(0.40f, 6.0f, 0.05f, 0.0003f, 0.2f, 0.006f, 0.35f, 0.02f, 1.00f, 5000.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxClean() },
+        { "Snare Layered",
+          makePad(0.76f, 5.0f, 0.28f, 0.0004f, 0.8f, 0.026f, 0.78f, 0.05f, 1.10f, 5000.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxHall() },
+        { "Snare Clap",
+          makePad(0.78f, 10.0f, 0.12f, 0.0002f, 0.3f, 0.010f, 0.82f, 0.12f, 1.10f, 8000.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxTransient() },
+        { "Snare Metal",
+          makePad(0.74f, 12.0f, 0.07f, 0.0001f, 1.5f, 0.007f, 0.60f, 0.10f, 2.50f, 8500.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxCrunch() },
+        { "Snare Wood",
+          makePad(0.70f, 0.0f, 0.14f, 0.0003f, 0.3f, 0.014f, 0.25f, 0.04f, 1.05f, 4500.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxRoom() },
+        { "Snare Boom",
+          makePad(0.84f, -3.0f, 0.40f, 0.0005f, 2.0f, 0.036f, 0.30f, 0.03f, 1.10f, 2200.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxSub() },
+        { "Snare Punch",
+          makePad(0.80f, 9.0f, 0.05f, 0.0001f, 0.3f, 0.005f, 0.60f, 0.22f, 1.50f, 9000.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxPunch() },
+        { "Snare Wash",
+          makePad(0.66f, 3.0f, 0.38f, 0.0005f, 1.0f, 0.034f, 0.55f, 0.03f, 1.05f, 3000.0f, -0.02f, f, PadVoiceModel::Snare),
+          fxHall() },
     };
 }
 
@@ -672,12 +935,86 @@ static std::vector<PadPreset> makeClapPresets()
 {
     const float f = kPadCharacteristics[3].baseFrequencyHz;
     return {
-        { "Clap Natural",    makePad(0.68f, -5.0f, 0.20f, 0.0002f, 0.0f, 0.016f, 0.62f, 0.02f, 1.00f, 3200.0f, 0.04f, f, PadVoiceModel::Clap) },
-        { "Clap Room",       makePad(0.70f, -4.0f, 0.28f, 0.0003f, 0.0f, 0.020f, 0.60f, 0.02f, 1.00f, 2800.0f, 0.04f, f, PadVoiceModel::Clap) },
-        { "Clap Tight",      makePad(0.66f, -6.0f, 0.12f, 0.0002f, 0.0f, 0.012f, 0.66f, 0.02f, 1.00f, 3800.0f, 0.04f, f, PadVoiceModel::Clap) },
-        { "Clap Dirty",      makePad(0.72f, -4.0f, 0.22f, 0.0002f, 0.0f, 0.018f, 0.68f, 0.03f, 1.02f, 2800.0f, 0.04f, f, PadVoiceModel::Clap) },
-        { "Clap Electronic", makePad(0.74f, -6.0f, 0.15f, 0.0001f, 0.0f, 0.010f, 0.72f, 0.04f, 1.04f, 4200.0f, 0.04f, f, PadVoiceModel::Clap) },
-        { "Clap Soft",       makePad(0.60f, -3.0f, 0.24f, 0.0003f, 0.0f, 0.022f, 0.55f, 0.01f, 1.00f, 2400.0f, 0.04f, f, PadVoiceModel::Clap) },
+        // 1. Ultra-sec, clicking, machine-gun
+        { "Clap Click",
+          makePad(0.78f, -10.0f, 0.025f, 0.0001f, 0.0f, 0.003f, 0.92f, 0.28f, 1.10f, 9000.0f, 0.00f, f, PadVoiceModel::Clap),
+          fxTransient() },
+        // 2. 808-style, court, chaud, sub
+        { "Clap 808",
+          makePad(0.80f, 3.0f, 0.12f, 0.0003f, 4.0f, 0.018f, 0.30f, 0.01f, 1.20f, 1200.0f, 0.00f, f, PadVoiceModel::Clap),
+          fxSub() },
+        // 3. Hall massif, longue queue
+        { "Clap Stadium",
+          makePad(0.68f, -2.0f, 0.55f, 0.0008f, 0.5f, 0.042f, 0.45f, 0.01f, 1.00f, 1800.0f, 0.14f, f, PadVoiceModel::Clap),
+          fxHall() },
+        // 4. Crushé, saturation extrême
+        { "Clap Crush",
+          makePad(0.82f, -5.0f, 0.08f, 0.0002f, 0.0f, 0.007f, 0.85f, 0.06f, 3.50f, 3500.0f, 0.00f, f, PadVoiceModel::Clap),
+          fxDist() },
+        // 5. Doux, finger snap, minimal
+        { "Clap Snap",
+          makePad(0.50f, -14.0f, 0.04f, 0.0001f, 0.0f, 0.004f, 0.20f, 0.15f, 1.00f, 6500.0f, 0.00f, f, PadVoiceModel::Clap),
+          fxClean() },
+        // 6. Gated reverb, 80s
+        { "Clap Gated",
+          makePad(0.74f, -6.0f, 0.35f, 0.0004f, 0.0f, 0.025f, 0.70f, 0.04f, 1.10f, 2800.0f, 0.06f, f, PadVoiceModel::Clap),
+          fxPunch() },
+        // 7. Lo-fi, vinyl, saturé
+        { "Clap Lo-Fi",
+          makePad(0.66f, 1.0f, 0.18f, 0.0003f, 1.5f, 0.015f, 0.60f, 0.02f, 2.00f, 1600.0f, 0.02f, f, PadVoiceModel::Clap),
+          fxWarm() },
+        // 8. Trashy industriel
+        { "Clap Trash",
+          makePad(0.76f, -3.0f, 0.10f, 0.0002f, 0.0f, 0.008f, 0.88f, 0.05f, 2.80f, 4200.0f, 0.00f, f, PadVoiceModel::Clap),
+          fxCrunch() },
+        // 9. Distant, cave, noyé
+        { "Clap Cave",
+          makePad(0.58f, 0.0f, 0.60f, 0.001f, 0.3f, 0.048f, 0.35f, 0.01f, 1.00f, 1400.0f, 0.18f, f, PadVoiceModel::Clap),
+          fxHall() },
+        // 10. Électro, chorus, synthetic
+        { "Clap Electro",
+          makePad(0.72f, -8.0f, 0.15f, 0.0002f, 0.0f, 0.012f, 0.75f, 0.08f, 1.06f, 5500.0f, 0.04f, f, PadVoiceModel::Clap),
+          fxElectro() },
+        // 11. Layered, gros plan
+        { "Clap Fat",
+          makePad(0.84f, -4.0f, 0.25f, 0.0003f, 0.0f, 0.020f, 0.55f, 0.03f, 1.40f, 2200.0f, 0.06f, f, PadVoiceModel::Clap),
+          fxPunch() },
+        // 12. Ghost, très discret
+        { "Clap Ghost",
+          makePad(0.38f, -2.0f, 0.08f, 0.0004f, 0.0f, 0.008f, 0.40f, 0.01f, 1.00f, 3000.0f, 0.00f, f, PadVoiceModel::Clap),
+          fxClean() },
+        // 13. Metallic, résonant
+        { "Clap Metal",
+          makePad(0.70f, 6.0f, 0.06f, 0.0001f, 2.0f, 0.006f, 0.65f, 0.10f, 1.80f, 7000.0f, 0.02f, f, PadVoiceModel::Clap),
+          fxCrunch() },
+        // 14. Subby, grave profond
+        { "Clap Sub",
+          makePad(0.78f, 4.0f, 0.30f, 0.0005f, 8.0f, 0.028f, 0.25f, 0.01f, 1.04f, 900.0f, 0.00f, f, PadVoiceModel::Clap),
+          fxSub() },
+        // 15. Bright, perçant, commercial
+        { "Clap Bright",
+          makePad(0.74f, -12.0f, 0.06f, 0.0001f, 0.0f, 0.005f, 0.80f, 0.18f, 1.08f, 8500.0f, 0.00f, f, PadVoiceModel::Clap),
+          fxTransient() },
+        // 16. Dark, moche, underground
+        { "Clap Dark",
+          makePad(0.62f, 2.0f, 0.22f, 0.0004f, 1.0f, 0.020f, 0.48f, 0.02f, 1.02f, 1100.0f, 0.04f, f, PadVoiceModel::Clap),
+          fxWarm() },
+        // 17. Tight, short, drum machine
+        { "Clap Drum Machine",
+          makePad(0.70f, -7.0f, 0.035f, 0.0001f, 0.0f, 0.004f, 0.72f, 0.12f, 1.04f, 6200.0f, 0.00f, f, PadVoiceModel::Clap),
+          fxClean() },
+        // 18. Ring, long sustain, résonant
+        { "Clap Ring",
+          makePad(0.66f, -1.0f, 0.45f, 0.0006f, 1.5f, 0.035f, 0.50f, 0.01f, 1.00f, 2000.0f, 0.10f, f, PadVoiceModel::Clap),
+          fxRoom() },
+        // 19. Slap, très court, très clicky
+        { "Clap Slap",
+          makePad(0.82f, -15.0f, 0.02f, 0.0001f, 0.0f, 0.002f, 0.95f, 0.35f, 1.12f, 10000.0f, 0.00f, f, PadVoiceModel::Clap),
+          fxTransient() },
+        // 20. Resonant, tonal, pitché
+        { "Clap Tonal",
+          makePad(0.68f, 8.0f, 0.20f, 0.0003f, 5.0f, 0.018f, 0.42f, 0.03f, 1.06f, 3200.0f, 0.04f, f, PadVoiceModel::Clap),
+          fxRoom() },
     };
 }
 
@@ -685,12 +1022,66 @@ static std::vector<PadPreset> makeHatClosedPresets()
 {
     const float f = kPadCharacteristics[4].baseFrequencyHz;
     return {
-        { "HH Closed Tight",  makePad(0.50f,  1.0f, 0.014f, 0.0f, 0.0f, 0.006f, 0.64f, 0.13f, 1.02f,  9600.0f, -0.12f, f, PadVoiceModel::Hat) },
-        { "HH Closed Mid",    makePad(0.50f,  0.0f, 0.020f, 0.0f, 0.0f, 0.007f, 0.62f, 0.11f, 1.00f,  8800.0f, -0.12f, f, PadVoiceModel::Hat) },
-        { "HH Closed Crisp",  makePad(0.53f,  2.0f, 0.018f, 0.0f, 0.0f, 0.006f, 0.66f, 0.15f, 1.03f,  9800.0f, -0.12f, f, PadVoiceModel::Hat) },
-        { "HH Closed Dusty",  makePad(0.46f, -2.0f, 0.026f, 0.0f, 0.0f, 0.008f, 0.56f, 0.08f, 1.00f,  7800.0f, -0.12f, f, PadVoiceModel::Hat) },
-        { "HH Closed Loose",  makePad(0.48f, -1.0f, 0.032f, 0.0f, 0.0f, 0.009f, 0.60f, 0.09f, 1.00f,  8200.0f, -0.12f, f, PadVoiceModel::Hat) },
-        { "HH Pedal",         makePad(0.44f, -4.0f, 0.030f, 0.0f, 0.0f, 0.010f, 0.52f, 0.11f, 1.01f,  7400.0f, -0.12f, f, PadVoiceModel::Hat) },
+        { "HH Tick",
+          makePad(0.50f, 2.0f, 0.005f, 0.0f, 0.0f, 0.003f, 0.70f, 0.25f, 1.10f, 15000.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxTransient() },
+        { "HH Fat",
+          makePad(0.52f, 0.0f, 0.030f, 0.0f, 0.0f, 0.008f, 0.35f, 0.08f, 1.02f, 5500.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxWarm() },
+        { "HH Gritty",
+          makePad(0.50f, -1.0f, 0.012f, 0.0f, 0.0f, 0.005f, 0.88f, 0.14f, 2.20f, 9000.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxCrunch() },
+        { "HH Soft",
+          makePad(0.40f, 0.0f, 0.025f, 0.0f, 0.0f, 0.007f, 0.30f, 0.03f, 1.00f, 7000.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxClean() },
+        { "HH Metal",
+          makePad(0.54f, 3.0f, 0.010f, 0.0f, 0.0f, 0.004f, 0.92f, 0.16f, 1.80f, 13000.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxCrunch() },
+        { "HH Dark",
+          makePad(0.44f, -3.0f, 0.035f, 0.0f, 0.0f, 0.009f, 0.40f, 0.06f, 1.00f, 4200.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxWarm() },
+        { "HH Bright",
+          makePad(0.54f, 3.0f, 0.008f, 0.0f, 0.0f, 0.004f, 0.72f, 0.22f, 1.08f, 14000.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxPunch() },
+        { "HH Dirty",
+          makePad(0.50f, -1.0f, 0.020f, 0.0f, 0.0f, 0.006f, 0.85f, 0.12f, 2.50f, 8000.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxDist() },
+        { "HH Ghost",
+          makePad(0.30f, 0.0f, 0.006f, 0.0f, 0.0f, 0.003f, 0.25f, 0.03f, 1.00f, 8200.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxClean() },
+        { "HH Sizzle",
+          makePad(0.48f, 0.0f, 0.040f, 0.0f, 0.0f, 0.009f, 0.80f, 0.10f, 1.10f, 9000.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxRoom() },
+        { "HH Pedal",
+          makePad(0.42f, -4.0f, 0.045f, 0.0f, 0.0f, 0.010f, 0.35f, 0.08f, 1.01f, 5000.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxClean() },
+        { "HH Noise",
+          makePad(0.48f, -2.0f, 0.028f, 0.0f, 0.0f, 0.008f, 0.90f, 0.07f, 1.06f, 4500.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxClean() },
+        { "HH Ring",
+          makePad(0.50f, 2.0f, 0.050f, 0.0f, 0.0f, 0.010f, 0.55f, 0.09f, 1.04f, 8000.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxRoom() },
+        { "HH Tight 2",
+          makePad(0.50f, 1.0f, 0.004f, 0.0f, 0.0f, 0.002f, 0.68f, 0.20f, 1.10f, 16000.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxTransient() },
+        { "HH Chunk",
+          makePad(0.50f, -1.0f, 0.015f, 0.0f, 0.0f, 0.005f, 0.50f, 0.10f, 1.04f, 5200.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxPunch() },
+        { "HH Plastic",
+          makePad(0.44f, 0.0f, 0.022f, 0.0f, 0.0f, 0.006f, 0.32f, 0.06f, 1.00f, 7500.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxClean() },
+        { "HH Splash",
+          makePad(0.52f, 1.0f, 0.055f, 0.0f, 0.0f, 0.011f, 0.75f, 0.10f, 1.06f, 10000.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxRoom() },
+        { "HH Dry",
+          makePad(0.48f, 0.0f, 0.008f, 0.0f, 0.0f, 0.004f, 0.50f, 0.08f, 1.00f, 9500.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxClean() },
+        { "HH Acid",
+          makePad(0.50f, -1.0f, 0.012f, 0.0f, 0.0f, 0.005f, 0.80f, 0.12f, 1.80f, 8500.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxElectro() },
+        { "HH Sub",
+          makePad(0.44f, -2.0f, 0.040f, 0.0f, 0.0f, 0.009f, 0.28f, 0.05f, 1.00f, 4000.0f, -0.12f, f, PadVoiceModel::Hat),
+          fxSub() },
     };
 }
 
@@ -698,12 +1089,66 @@ static std::vector<PadPreset> makeHatOpenPresets()
 {
     const float f = kPadCharacteristics[5].baseFrequencyHz;
     return {
-        { "HH Open Short",   makePad(0.44f,  0.0f, 0.050f, 0.0f, 0.0f, 0.008f, 0.58f, 0.09f, 1.00f,  7600.0f, 0.12f, f, PadVoiceModel::Hat) },
-        { "HH Open Mid",     makePad(0.42f,  0.0f, 0.085f, 0.0f, 0.0f, 0.009f, 0.60f, 0.07f, 1.00f,  7200.0f, 0.12f, f, PadVoiceModel::Hat) },
-        { "HH Open Long",    makePad(0.42f, -1.0f, 0.145f, 0.0f, 0.0f, 0.010f, 0.58f, 0.06f, 1.00f,  6800.0f, 0.12f, f, PadVoiceModel::Hat) },
-        { "HH Open Bright",  makePad(0.46f,  1.0f, 0.095f, 0.0f, 0.0f, 0.009f, 0.66f, 0.11f, 1.02f,  8200.0f, 0.12f, f, PadVoiceModel::Hat) },
-        { "HH Open Dark",    makePad(0.40f, -2.0f, 0.115f, 0.0f, 0.0f, 0.010f, 0.52f, 0.06f, 1.00f,  6400.0f, 0.12f, f, PadVoiceModel::Hat) },
-        { "HH Wash",         makePad(0.46f,  0.0f, 0.180f, 0.0f, 0.0f, 0.011f, 0.64f, 0.07f, 1.01f,  7600.0f, 0.12f, f, PadVoiceModel::Hat) },
+        { "HH Open Short",
+          makePad(0.44f, 0.0f, 0.035f, 0.0f, 0.0f, 0.007f, 0.55f, 0.09f, 1.00f, 9000.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxTransient() },
+        { "HH Open Long",
+          makePad(0.42f, -1.0f, 0.220f, 0.0f, 0.0f, 0.012f, 0.40f, 0.06f, 1.00f, 5500.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxHall() },
+        { "HH Open Sizzle",
+          makePad(0.46f, 0.0f, 0.120f, 0.0f, 0.0f, 0.010f, 0.85f, 0.08f, 1.04f, 10000.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxRoom() },
+        { "HH Open Dark",
+          makePad(0.40f, -2.0f, 0.180f, 0.0f, 0.0f, 0.011f, 0.35f, 0.06f, 1.00f, 4500.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxWarm() },
+        { "HH Open Bright",
+          makePad(0.48f, 1.0f, 0.060f, 0.0f, 0.0f, 0.008f, 0.66f, 0.15f, 1.04f, 12000.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxPunch() },
+        { "HH Open Gritty",
+          makePad(0.44f, 0.0f, 0.090f, 0.0f, 0.0f, 0.009f, 0.80f, 0.10f, 2.00f, 8000.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxCrunch() },
+        { "HH Open Wash",
+          makePad(0.46f, 0.0f, 0.250f, 0.0f, 0.0f, 0.013f, 0.60f, 0.07f, 1.01f, 7000.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxHall() },
+        { "HH Open Dist",
+          makePad(0.44f, 0.0f, 0.080f, 0.0f, 0.0f, 0.009f, 0.78f, 0.10f, 2.80f, 7500.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxDist() },
+        { "HH Open Ghost",
+          makePad(0.28f, 0.0f, 0.040f, 0.0f, 0.0f, 0.007f, 0.30f, 0.03f, 1.00f, 7200.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxClean() },
+        { "HH Open Metal",
+          makePad(0.46f, 2.0f, 0.050f, 0.0f, 0.0f, 0.008f, 0.90f, 0.12f, 1.60f, 13000.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxCrunch() },
+        { "HH Open Loose",
+          makePad(0.42f, -1.0f, 0.160f, 0.0f, 0.0f, 0.011f, 0.50f, 0.06f, 1.00f, 6500.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxRoom() },
+        { "HH Open Soft",
+          makePad(0.38f, -1.0f, 0.100f, 0.0f, 0.0f, 0.010f, 0.35f, 0.05f, 1.00f, 5000.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxClean() },
+        { "HH Open Ring",
+          makePad(0.42f, 0.0f, 0.200f, 0.0f, 0.0f, 0.012f, 0.55f, 0.07f, 1.00f, 5500.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxHall() },
+        { "HH Open Fat",
+          makePad(0.46f, -1.0f, 0.140f, 0.0f, 0.0f, 0.010f, 0.38f, 0.08f, 1.02f, 5200.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxWarm() },
+        { "HH Open Thin",
+          makePad(0.40f, 1.0f, 0.055f, 0.0f, 0.0f, 0.008f, 0.70f, 0.08f, 1.00f, 14000.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxClean() },
+        { "HH Open Noise",
+          makePad(0.44f, -2.0f, 0.100f, 0.0f, 0.0f, 0.010f, 0.88f, 0.06f, 1.02f, 4800.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxClean() },
+        { "HH Open Chunk",
+          makePad(0.44f, 0.0f, 0.075f, 0.0f, 0.0f, 0.009f, 0.50f, 0.09f, 1.02f, 7500.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxPunch() },
+        { "HH Open Splash",
+          makePad(0.48f, 1.0f, 0.240f, 0.0f, 0.0f, 0.013f, 0.72f, 0.08f, 1.00f, 9500.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxHall() },
+        { "HH Open Dist 2",
+          makePad(0.44f, 0.0f, 0.090f, 0.0f, 0.0f, 0.009f, 0.75f, 0.10f, 3.00f, 8000.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxDist() },
+        { "HH Open Sub",
+          makePad(0.42f, -2.0f, 0.180f, 0.0f, 0.0f, 0.011f, 0.30f, 0.05f, 1.00f, 4200.0f, 0.12f, f, PadVoiceModel::Hat),
+          fxSub() },
     };
 }
 
@@ -711,13 +1156,26 @@ static std::vector<PadPreset> makePerc1Presets()
 {
     const float f = kPadCharacteristics[6].baseFrequencyHz;
     return {
-        { "Wood Low",      makePad(0.90f, -5.0f, 0.082f, 0.0001f, 6.0f, 0.018f, 0.08f, 0.06f, 1.00f, 1200.0f, -0.18f, f, PadVoiceModel::PercWood) },
-        { "Wood Mid",      makePad(0.92f, -2.0f, 0.072f, 0.0001f, 5.0f, 0.016f, 0.07f, 0.08f, 1.00f, 1600.0f, -0.18f, f, PadVoiceModel::PercWood) },
-        { "Wood High",     makePad(0.88f,  2.0f, 0.062f, 0.0001f, 4.0f, 0.014f, 0.08f, 0.10f, 1.00f, 2100.0f, -0.18f, f, PadVoiceModel::PercWood) },
-        { "Wood Dry",      makePad(0.88f, -3.0f, 0.055f, 0.0001f, 6.0f, 0.014f, 0.05f, 0.12f, 1.00f, 1400.0f, -0.18f, f, PadVoiceModel::PercWood) },
-        { "Tabla",         makePad(0.84f,  0.0f, 0.105f, 0.0002f, 8.0f, 0.020f, 0.06f, 0.05f, 1.01f, 1100.0f, -0.12f, f, PadVoiceModel::PercWood) },
-        { "Conga",         makePad(0.86f,  3.0f, 0.130f, 0.0002f, 4.0f, 0.024f, 0.06f, 0.07f, 1.00f, 1800.0f, -0.10f, f, PadVoiceModel::PercWood) },
-        { "Cajon",         makePad(0.90f, -4.0f, 0.090f, 0.0001f, 6.0f, 0.018f, 0.10f, 0.09f, 1.02f, 1300.0f, -0.14f, f, PadVoiceModel::PercWood) },
+        { "Wood Tick",   makePad(0.92f,  2.0f, 0.020f, 0.0001f,  2.0f, 0.005f, 0.05f, 0.18f, 1.02f, 4500.0f, -0.18f, f, PadVoiceModel::PercWood), fxTransient() },
+        { "Wood Low",    makePad(0.94f, -6.0f, 0.220f, 0.0002f,  4.0f, 0.035f, 0.08f, 0.05f, 1.00f,  900.0f, -0.18f, f, PadVoiceModel::PercWood), fxSub() },
+        { "Wood High",   makePad(0.86f,  4.0f, 0.040f, 0.0001f, 12.0f, 0.010f, 0.06f, 0.14f, 1.04f, 4800.0f, -0.16f, f, PadVoiceModel::PercWood), fxPunch() },
+        { "Tabla",       makePad(0.82f,  0.0f, 0.120f, 0.0002f, 14.0f, 0.022f, 0.07f, 0.06f, 1.01f, 1100.0f, -0.12f, f, PadVoiceModel::PercWood), fxRoom() },
+        { "Conga",       makePad(0.86f,  3.0f, 0.160f, 0.0002f,  5.0f, 0.028f, 0.06f, 0.07f, 1.00f, 2200.0f, -0.10f, f, PadVoiceModel::PercWood), fxRoom() },
+        { "Cajon",       makePad(0.90f, -4.0f, 0.100f, 0.0001f,  8.0f, 0.020f, 0.12f, 0.10f, 1.02f, 1800.0f, -0.14f, f, PadVoiceModel::PercWood), fxPunch() },
+        { "Wood Dist",   makePad(0.88f, -2.0f, 0.060f, 0.0001f,  8.0f, 0.014f, 0.15f, 0.10f, 2.80f, 2000.0f, -0.18f, f, PadVoiceModel::PercWood), fxDist() },
+        { "Wood Ghost",  makePad(0.45f, -1.0f, 0.040f, 0.0002f,  3.0f, 0.010f, 0.03f, 0.03f, 1.00f, 2200.0f, -0.14f, f, PadVoiceModel::PercWood), fxClean() },
+        { "Wood Block",  makePad(0.94f,  6.0f, 0.025f, 0.0001f,  2.0f, 0.006f, 0.04f, 0.20f, 1.04f, 5000.0f, -0.14f, f, PadVoiceModel::PercWood), fxClean() },
+        { "Wood Ring",   makePad(0.84f,  0.0f, 0.250f, 0.0002f, 10.0f, 0.040f, 0.10f, 0.05f, 1.01f, 1200.0f, -0.12f, f, PadVoiceModel::PercWood), fxHall() },
+        { "Wood Slap",   makePad(0.88f,  2.0f, 0.035f, 0.0001f,  5.0f, 0.008f, 0.06f, 0.16f, 1.06f, 3800.0f, -0.16f, f, PadVoiceModel::PercWood), fxPunch() },
+        { "Wood Fat",    makePad(0.92f, -3.0f, 0.180f, 0.0002f,  6.0f, 0.030f, 0.04f, 0.06f, 1.02f,  950.0f, -0.12f, f, PadVoiceModel::PercWood), fxWarm() },
+        { "Wood Bright", makePad(0.86f,  3.0f, 0.030f, 0.0001f,  8.0f, 0.007f, 0.05f, 0.15f, 1.02f, 4800.0f, -0.16f, f, PadVoiceModel::PercWood), fxTransient() },
+        { "Wood Knock",  makePad(0.88f, -3.0f, 0.080f, 0.0001f, 12.0f, 0.018f, 0.08f, 0.10f, 1.04f, 2400.0f, -0.14f, f, PadVoiceModel::PercWood), fxCrunch() },
+        { "Wood Lo-Fi",  makePad(0.86f, -1.0f, 0.100f, 0.0001f,  7.0f, 0.020f, 0.12f, 0.08f, 2.20f, 1400.0f, -0.16f, f, PadVoiceModel::PercWood), fxWarm() },
+        { "Wood Dry",    makePad(0.88f, -3.0f, 0.020f, 0.0001f,  2.0f, 0.005f, 0.04f, 0.14f, 1.00f, 4000.0f, -0.18f, f, PadVoiceModel::PercWood), fxClean() },
+        { "Wood Deep",   makePad(0.94f, -7.0f, 0.200f, 0.0002f,  3.0f, 0.032f, 0.06f, 0.04f, 1.00f,  800.0f, -0.10f, f, PadVoiceModel::PercWood), fxSub() },
+        { "Wood Soft",   makePad(0.78f, -1.0f, 0.080f, 0.0002f,  3.0f, 0.018f, 0.03f, 0.03f, 1.00f, 1800.0f, -0.14f, f, PadVoiceModel::PercWood), fxClean() },
+        { "Wood Metal",  makePad(0.88f,  1.0f, 0.050f, 0.0001f,  6.0f, 0.012f, 0.08f, 0.10f, 1.80f, 4200.0f, -0.16f, f, PadVoiceModel::PercWood), fxCrunch() },
+        { "Wood Pop",    makePad(0.86f,  0.0f, 0.030f, 0.0001f,  4.0f, 0.007f, 0.05f, 0.18f, 1.04f, 4600.0f, -0.16f, f, PadVoiceModel::PercWood), fxPunch() },
     };
 }
 
@@ -725,13 +1183,26 @@ static std::vector<PadPreset> makePerc2Presets()
 {
     const float f = kPadCharacteristics[7].baseFrequencyHz;
     return {
-        { "Metal Low",     makePad(0.86f, -7.0f, 0.080f, 0.0001f, 7.0f, 0.018f, 0.09f, 0.05f, 1.00f, 1800.0f, 0.16f, f, PadVoiceModel::PercMetal) },
-        { "Metal Mid",     makePad(0.84f, -3.0f, 0.075f, 0.0001f, 8.0f, 0.018f, 0.08f, 0.06f, 1.00f, 2400.0f, 0.16f, f, PadVoiceModel::PercMetal) },
-        { "Metal Bright",  makePad(0.82f,  2.0f, 0.070f, 0.0001f, 6.0f, 0.016f, 0.10f, 0.08f, 1.00f, 3400.0f, 0.16f, f, PadVoiceModel::PercMetal) },
-        { "Cowbell",       makePad(0.84f,  5.0f, 0.135f, 0.0001f, 9.0f, 0.024f, 0.06f, 0.08f, 1.02f, 2800.0f, 0.16f, f, PadVoiceModel::PercMetal) },
-        { "Rim Shot",      makePad(0.82f,  1.0f, 0.050f, 0.0001f, 4.0f, 0.012f, 0.10f, 0.16f, 1.03f, 4200.0f, 0.12f, f, PadVoiceModel::PercMetal) },
-        { "Tambourine",    makePad(0.78f,  4.0f, 0.110f, 0.0001f, 3.0f, 0.015f, 0.18f, 0.04f, 1.00f, 5200.0f, 0.18f, f, PadVoiceModel::PercMetal) },
-        { "Cowbell High",  makePad(0.80f,  8.0f, 0.150f, 0.0001f,10.0f, 0.022f, 0.06f, 0.07f, 1.02f, 3600.0f, 0.16f, f, PadVoiceModel::PercMetal) },
+        { "Metal Tick",    makePad(0.90f,  2.0f, 0.020f, 0.0001f,  2.0f, 0.005f, 0.05f, 0.18f, 1.02f, 6500.0f, 0.16f, f, PadVoiceModel::PercMetal), fxTransient() },
+        { "Metal Low",     makePad(0.88f, -7.0f, 0.200f, 0.0002f,  6.0f, 0.032f, 0.08f, 0.04f, 1.00f, 1400.0f, 0.18f, f, PadVoiceModel::PercMetal), fxSub() },
+        { "Cowbell",       makePad(0.84f,  5.0f, 0.150f, 0.0001f,  9.0f, 0.024f, 0.06f, 0.08f, 1.02f, 3000.0f, 0.16f, f, PadVoiceModel::PercMetal), fxRoom() },
+        { "Rim Shot",      makePad(0.82f,  1.0f, 0.030f, 0.0001f,  4.0f, 0.008f, 0.10f, 0.22f, 1.03f, 7000.0f, 0.12f, f, PadVoiceModel::PercMetal), fxPunch() },
+        { "Tambourine",    makePad(0.78f,  4.0f, 0.120f, 0.0001f,  3.0f, 0.015f, 0.22f, 0.04f, 1.00f, 5500.0f, 0.18f, f, PadVoiceModel::PercMetal), fxRoom() },
+        { "Metal Dist",    makePad(0.84f, -2.0f, 0.060f, 0.0001f,  6.0f, 0.014f, 0.15f, 0.10f, 3.00f, 3500.0f, 0.14f, f, PadVoiceModel::PercMetal), fxDist() },
+        { "Metal Ghost",   makePad(0.40f, -3.0f, 0.040f, 0.0002f,  5.0f, 0.010f, 0.04f, 0.03f, 1.00f, 3000.0f, 0.14f, f, PadVoiceModel::PercMetal), fxClean() },
+        { "Bell Tone",     makePad(0.80f,  6.0f, 0.180f, 0.0002f,  7.0f, 0.028f, 0.05f, 0.06f, 1.00f, 2000.0f, 0.16f, f, PadVoiceModel::PercMetal), fxHall() },
+        { "Steel Drum",    makePad(0.82f,  2.0f, 0.140f, 0.0002f, 10.0f, 0.022f, 0.06f, 0.07f, 1.01f, 3200.0f, 0.14f, f, PadVoiceModel::PercMetal), fxRoom() },
+        { "Anvil",         makePad(0.86f,  7.0f, 0.060f, 0.0001f,  9.0f, 0.016f, 0.12f, 0.10f, 2.50f, 5000.0f, 0.14f, f, PadVoiceModel::PercMetal), fxCrunch() },
+        { "Metal Bright",  makePad(0.82f,  3.0f, 0.040f, 0.0001f,  5.0f, 0.010f, 0.08f, 0.14f, 1.02f, 6800.0f, 0.12f, f, PadVoiceModel::PercMetal), fxTransient() },
+        { "Metal Dark",    makePad(0.80f, -5.0f, 0.160f, 0.0002f,  8.0f, 0.028f, 0.09f, 0.04f, 1.00f, 1200.0f, 0.18f, f, PadVoiceModel::PercMetal), fxWarm() },
+        { "Metal Ring",    makePad(0.80f,  0.0f, 0.220f, 0.0002f,  8.0f, 0.036f, 0.06f, 0.05f, 1.01f, 2200.0f, 0.16f, f, PadVoiceModel::PercMetal), fxHall() },
+        { "Metal Dry",     makePad(0.82f,  1.0f, 0.020f, 0.0001f,  3.0f, 0.005f, 0.04f, 0.15f, 1.02f, 5500.0f, 0.12f, f, PadVoiceModel::PercMetal), fxClean() },
+        { "Metal Fat",     makePad(0.84f, -4.0f, 0.180f, 0.0002f,  6.0f, 0.030f, 0.08f, 0.04f, 1.02f, 1500.0f, 0.16f, f, PadVoiceModel::PercMetal), fxWarm() },
+        { "Metal Click",   makePad(0.82f,  3.0f, 0.025f, 0.0001f,  5.0f, 0.006f, 0.05f, 0.20f, 1.04f, 5200.0f, 0.14f, f, PadVoiceModel::PercMetal), fxPunch() },
+        { "Metal Noise",   makePad(0.80f, -2.0f, 0.100f, 0.0001f,  6.0f, 0.020f, 0.25f, 0.06f, 1.02f, 4000.0f, 0.18f, f, PadVoiceModel::PercMetal), fxClean() },
+        { "Metal Lo-Fi",   makePad(0.80f, -1.0f, 0.080f, 0.0001f,  6.0f, 0.018f, 0.12f, 0.08f, 2.20f, 2000.0f, 0.14f, f, PadVoiceModel::PercMetal), fxWarm() },
+        { "Metal Soft",    makePad(0.76f, -5.0f, 0.100f, 0.0002f,  4.0f, 0.022f, 0.05f, 0.04f, 1.00f, 2600.0f, 0.16f, f, PadVoiceModel::PercMetal), fxClean() },
+        { "Metal Pop",     makePad(0.84f,  3.0f, 0.040f, 0.0001f,  5.0f, 0.010f, 0.08f, 0.16f, 1.04f, 6000.0f, 0.12f, f, PadVoiceModel::PercMetal), fxPunch() },
     };
 }
 
@@ -739,11 +1210,26 @@ static std::vector<PadPreset> makeTomLowPresets()
 {
     const float f = kPadCharacteristics[8].baseFrequencyHz;
     return {
-        { "Tom Low Deep",   makePad(0.62f, -2.0f, 0.14f, 0.0004f, 4.0f, 0.032f, 0.006f, 0.09f, 1.01f, 2800.0f, -0.08f, f, PadVoiceModel::Tom) },
-        { "Tom Low Mid",    makePad(0.60f,  0.0f, 0.12f, 0.0004f, 3.5f, 0.028f, 0.006f, 0.09f, 1.01f, 3000.0f, -0.08f, f, PadVoiceModel::Tom) },
-        { "Tom Low Tight",  makePad(0.58f,  1.0f, 0.09f, 0.0003f, 3.0f, 0.022f, 0.006f, 0.10f, 1.01f, 3400.0f, -0.08f, f, PadVoiceModel::Tom) },
-        { "Tom Low Big",    makePad(0.66f, -3.0f, 0.18f, 0.0005f, 4.5f, 0.038f, 0.008f, 0.08f, 1.00f, 2400.0f, -0.10f, f, PadVoiceModel::Tom) },
-        { "Tom Low Dry",    makePad(0.60f,  0.0f, 0.10f, 0.0003f, 3.0f, 0.025f, 0.005f, 0.10f, 1.02f, 3200.0f, -0.06f, f, PadVoiceModel::Tom) },
+        { "Tom Low Deep",    makePad(0.66f, -5.0f, 0.300f, 0.0006f,  3.0f, 0.050f, 0.003f, 0.05f, 1.00f, 1200.0f, -0.10f, f, PadVoiceModel::Tom), fxSub() },
+        { "Tom Low Punch",   makePad(0.62f,  1.0f, 0.060f, 0.0002f, 10.0f, 0.014f, 0.005f, 0.14f, 1.08f, 4200.0f, -0.06f, f, PadVoiceModel::Tom), fxPunch() },
+        { "Tom Low Tight",   makePad(0.58f,  2.0f, 0.040f, 0.0002f,  4.0f, 0.010f, 0.004f, 0.12f, 1.04f, 4800.0f, -0.06f, f, PadVoiceModel::Tom), fxTransient() },
+        { "Tom Low Loose",   makePad(0.56f, -1.0f, 0.220f, 0.0005f,  5.0f, 0.040f, 0.006f, 0.06f, 1.00f, 2000.0f, -0.08f, f, PadVoiceModel::Tom), fxRoom() },
+        { "Tom Low Dist",    makePad(0.62f,  0.0f, 0.100f, 0.0003f,  8.0f, 0.022f, 0.012f, 0.10f, 2.80f, 3000.0f, -0.08f, f, PadVoiceModel::Tom), fxDist() },
+        { "Tom Low Soft",    makePad(0.50f, -2.0f, 0.140f, 0.0005f,  2.0f, 0.028f, 0.002f, 0.04f, 1.00f, 2200.0f, -0.10f, f, PadVoiceModel::Tom), fxClean() },
+        { "Tom Low Boom",    makePad(0.66f, -4.0f, 0.350f, 0.0006f,  6.0f, 0.055f, 0.004f, 0.06f, 1.00f, 1400.0f, -0.12f, f, PadVoiceModel::Tom), fxHall() },
+        { "Tom Low Ring",    makePad(0.60f,  0.0f, 0.250f, 0.0005f,  7.0f, 0.045f, 0.006f, 0.07f, 1.02f, 1800.0f, -0.08f, f, PadVoiceModel::Tom), fxRoom() },
+        { "Tom Low Dark",    makePad(0.62f, -3.0f, 0.180f, 0.0005f, 12.0f, 0.035f, 0.005f, 0.06f, 1.00f, 1600.0f, -0.10f, f, PadVoiceModel::Tom), fxWarm() },
+        { "Tom Low Bright",  makePad(0.58f,  2.0f, 0.070f, 0.0003f,  3.0f, 0.016f, 0.007f, 0.12f, 1.04f, 5000.0f, -0.06f, f, PadVoiceModel::Tom), fxTransient() },
+        { "Tom Low Click",   makePad(0.56f,  3.0f, 0.045f, 0.0002f,  2.0f, 0.010f, 0.003f, 0.15f, 1.06f, 4600.0f, -0.06f, f, PadVoiceModel::Tom), fxTransient() },
+        { "Tom Low Fat",     makePad(0.64f, -2.0f, 0.200f, 0.0005f,  5.0f, 0.038f, 0.008f, 0.07f, 1.02f, 1800.0f, -0.08f, f, PadVoiceModel::Tom), fxPunch() },
+        { "Tom Low Ghost",   makePad(0.42f,  0.0f, 0.080f, 0.0004f,  2.0f, 0.018f, 0.002f, 0.03f, 1.00f, 2600.0f, -0.06f, f, PadVoiceModel::Tom), fxClean() },
+        { "Tom Low Analog",  makePad(0.60f, -1.0f, 0.160f, 0.0004f,  6.0f, 0.032f, 0.005f, 0.08f, 1.06f, 2400.0f, -0.08f, f, PadVoiceModel::Tom), fxWarm() },
+        { "Tom Low Dry",     makePad(0.58f,  0.0f, 0.050f, 0.0002f,  4.0f, 0.012f, 0.003f, 0.10f, 1.02f, 3800.0f, -0.06f, f, PadVoiceModel::Tom), fxClean() },
+        { "Tom Low Resonant",makePad(0.62f, -1.0f, 0.280f, 0.0006f,  8.0f, 0.048f, 0.006f, 0.07f, 1.02f, 1600.0f, -0.10f, f, PadVoiceModel::Tom), fxRoom() },
+        { "Tom Low Acoustic",makePad(0.60f, -1.0f, 0.120f, 0.0004f,  5.0f, 0.026f, 0.007f, 0.08f, 1.02f, 2800.0f, -0.08f, f, PadVoiceModel::Tom), fxRoom() },
+        { "Tom Low Sub",     makePad(0.68f, -6.0f, 0.340f, 0.0007f,  4.0f, 0.052f, 0.003f, 0.04f, 1.00f, 1200.0f, -0.12f, f, PadVoiceModel::Tom), fxSub() },
+        { "Tom Low Drop",    makePad(0.64f,  0.0f, 0.150f, 0.0003f, 12.0f, 0.030f, 0.008f, 0.09f, 1.06f, 2600.0f, -0.08f, f, PadVoiceModel::Tom), fxCrunch() },
+        { "Tom Low Massive", makePad(0.66f, -3.0f, 0.320f, 0.0007f,  8.0f, 0.055f, 0.015f, 0.06f, 1.04f, 1600.0f, -0.12f, f, PadVoiceModel::Tom), fxHall() },
     };
 }
 
@@ -751,11 +1237,26 @@ static std::vector<PadPreset> makeTomHighPresets()
 {
     const float f = kPadCharacteristics[9].baseFrequencyHz;
     return {
-        { "Tom High Crisp",  makePad(0.58f, 2.0f, 0.10f, 0.0004f, 3.0f, 0.025f, 0.006f, 0.08f, 1.01f, 3800.0f, 0.08f, f, PadVoiceModel::Tom) },
-        { "Tom High Mid",    makePad(0.56f, 0.0f, 0.10f, 0.0004f, 2.5f, 0.024f, 0.006f, 0.08f, 1.01f, 4000.0f, 0.08f, f, PadVoiceModel::Tom) },
-        { "Tom High Bright", makePad(0.56f, 3.0f, 0.09f, 0.0003f, 2.0f, 0.020f, 0.007f, 0.10f, 1.02f, 4400.0f, 0.08f, f, PadVoiceModel::Tom) },
-        { "Tom High Tight",  makePad(0.54f, 2.0f, 0.07f, 0.0003f, 2.0f, 0.018f, 0.007f, 0.11f, 1.02f, 4800.0f, 0.06f, f, PadVoiceModel::Tom) },
-        { "Tom High Big",    makePad(0.60f, 0.0f, 0.13f, 0.0005f, 3.5f, 0.030f, 0.008f, 0.07f, 1.00f, 3400.0f, 0.10f, f, PadVoiceModel::Tom) },
+        { "Tom High Crisp",   makePad(0.58f,  2.0f, 0.050f, 0.0003f,  3.0f, 0.012f, 0.005f, 0.12f, 1.04f, 5200.0f, 0.08f, f, PadVoiceModel::Tom), fxTransient() },
+        { "Tom High Punch",   makePad(0.58f,  1.0f, 0.060f, 0.0003f,  8.0f, 0.015f, 0.004f, 0.14f, 1.08f, 5600.0f, 0.06f, f, PadVoiceModel::Tom), fxPunch() },
+        { "Tom High Tight",   makePad(0.54f,  3.0f, 0.040f, 0.0002f,  2.0f, 0.009f, 0.004f, 0.14f, 1.04f, 5800.0f, 0.06f, f, PadVoiceModel::Tom), fxTransient() },
+        { "Tom High Loose",   makePad(0.54f, -1.0f, 0.180f, 0.0005f,  4.0f, 0.035f, 0.006f, 0.06f, 1.00f, 3200.0f, 0.08f, f, PadVoiceModel::Tom), fxRoom() },
+        { "Tom High Dist",    makePad(0.56f,  0.0f, 0.080f, 0.0003f,  7.0f, 0.018f, 0.010f, 0.10f, 2.50f, 4000.0f, 0.08f, f, PadVoiceModel::Tom), fxDist() },
+        { "Tom High Soft",    makePad(0.48f, -2.0f, 0.120f, 0.0005f,  2.0f, 0.025f, 0.003f, 0.04f, 1.00f, 3000.0f, 0.08f, f, PadVoiceModel::Tom), fxClean() },
+        { "Tom High Ring",    makePad(0.56f,  0.0f, 0.200f, 0.0005f,  6.0f, 0.038f, 0.006f, 0.07f, 1.01f, 3400.0f, 0.08f, f, PadVoiceModel::Tom), fxHall() },
+        { "Tom High Dark",    makePad(0.56f, -3.0f, 0.140f, 0.0004f, 10.0f, 0.030f, 0.005f, 0.05f, 1.00f, 2600.0f, 0.10f, f, PadVoiceModel::Tom), fxWarm() },
+        { "Tom High Bright",  makePad(0.56f,  3.0f, 0.050f, 0.0002f,  3.0f, 0.012f, 0.006f, 0.12f, 1.04f, 6000.0f, 0.06f, f, PadVoiceModel::Tom), fxTransient() },
+        { "Tom High Click",   makePad(0.54f,  4.0f, 0.040f, 0.0002f,  2.0f, 0.009f, 0.004f, 0.15f, 1.06f, 5800.0f, 0.06f, f, PadVoiceModel::Tom), fxTransient() },
+        { "Tom High Fat",     makePad(0.58f,  1.0f, 0.150f, 0.0004f,  4.0f, 0.030f, 0.007f, 0.08f, 1.02f, 3600.0f, 0.08f, f, PadVoiceModel::Tom), fxPunch() },
+        { "Tom High Ghost",   makePad(0.40f,  0.0f, 0.060f, 0.0004f,  2.0f, 0.014f, 0.003f, 0.03f, 1.00f, 4200.0f, 0.06f, f, PadVoiceModel::Tom), fxClean() },
+        { "Tom High Analog",  makePad(0.56f,  0.0f, 0.100f, 0.0004f,  5.0f, 0.022f, 0.005f, 0.08f, 1.06f, 4000.0f, 0.08f, f, PadVoiceModel::Tom), fxWarm() },
+        { "Tom High Dry",     makePad(0.54f,  1.0f, 0.050f, 0.0002f,  3.0f, 0.012f, 0.004f, 0.10f, 1.02f, 5000.0f, 0.06f, f, PadVoiceModel::Tom), fxClean() },
+        { "Tom High Pop",     makePad(0.56f,  2.0f, 0.070f, 0.0003f,  4.0f, 0.016f, 0.005f, 0.12f, 1.04f, 4800.0f, 0.08f, f, PadVoiceModel::Tom), fxPunch() },
+        { "Tom High Resonant",makePad(0.56f,  1.0f, 0.180f, 0.0005f,  7.0f, 0.035f, 0.006f, 0.07f, 1.02f, 3200.0f, 0.08f, f, PadVoiceModel::Tom), fxRoom() },
+        { "Tom High Big",     makePad(0.60f,  0.0f, 0.250f, 0.0006f,  5.0f, 0.045f, 0.008f, 0.06f, 1.00f, 2800.0f, 0.10f, f, PadVoiceModel::Tom), fxHall() },
+        { "Tom High Acoustic",makePad(0.56f,  0.0f, 0.090f, 0.0004f,  4.0f, 0.020f, 0.006f, 0.08f, 1.02f, 4200.0f, 0.08f, f, PadVoiceModel::Tom), fxRoom() },
+        { "Tom High Thin",    makePad(0.50f,  3.0f, 0.040f, 0.0002f,  1.5f, 0.009f, 0.005f, 0.12f, 1.02f, 5600.0f, 0.06f, f, PadVoiceModel::Tom), fxTransient() },
+        { "Tom High Snap",    makePad(0.58f,  2.0f, 0.065f, 0.0003f,  6.0f, 0.015f, 0.004f, 0.13f, 1.06f, 5400.0f, 0.06f, f, PadVoiceModel::Tom), fxPunch() },
     };
 }
 
@@ -763,13 +1264,86 @@ static std::vector<PadPreset> makeCrashPresets()
 {
     const float f = kPadCharacteristics[10].baseFrequencyHz;
     return {
-        { "Crash Short",    makePad(0.44f, 0.0f, 0.18f, 0.0f, 0.0f, 0.011f, 0.55f, 0.06f, 1.00f, 8000.0f, 0.20f, f, PadVoiceModel::Crash) },
-        { "Crash Mid",      makePad(0.44f, 0.0f, 0.26f, 0.0f, 0.0f, 0.012f, 0.54f, 0.06f, 1.00f, 7600.0f, 0.20f, f, PadVoiceModel::Crash) },
-        { "Crash Long",     makePad(0.44f, 0.0f, 0.45f, 0.0f, 0.0f, 0.014f, 0.52f, 0.05f, 1.00f, 7200.0f, 0.20f, f, PadVoiceModel::Crash) },
-        { "Crash Bright",   makePad(0.46f, 0.0f, 0.28f, 0.0f, 0.0f, 0.012f, 0.60f, 0.08f, 1.00f, 9000.0f, 0.18f, f, PadVoiceModel::Crash) },
-        { "Crash Dark",     makePad(0.42f, 0.0f, 0.32f, 0.0f, 0.0f, 0.013f, 0.48f, 0.05f, 1.00f, 6400.0f, 0.22f, f, PadVoiceModel::Crash) },
-        { "Crash Stack",    makePad(0.38f, 0.0f, 0.12f, 0.0f, 0.0f, 0.010f, 0.62f, 0.07f, 1.00f,10000.0f, 0.16f, f, PadVoiceModel::Crash) },
-        { "Ride Bell",      makePad(0.50f, 0.0f, 0.22f, 0.0f, 0.0f, 0.012f, 0.45f, 0.06f, 1.00f, 7000.0f, 0.14f, f, PadVoiceModel::Crash) },
+        // 1. Ultra-court, splash machine-gun
+        { "Crash Tick",
+          makePad(0.50f, 4.0f, 0.025f, 0.0001f, 0.0f, 0.003f, 0.88f, 0.22f, 1.08f, 13000.0f, 0.10f, f, PadVoiceModel::Crash),
+          fxTransient() },
+        // 2. Wash massif, longue queue
+        { "Crash Wash",
+          makePad(0.42f, -1.0f, 0.70f, 0.001f, 0.3f, 0.022f, 0.40f, 0.02f, 1.00f, 5000.0f, 0.24f, f, PadVoiceModel::Crash),
+          fxHall() },
+        // 3. Trashy, distortion lourde
+        { "Crash Trash",
+          makePad(0.52f, -3.0f, 0.15f, 0.0002f, 0.0f, 0.010f, 0.82f, 0.10f, 3.20f, 7500.0f, 0.14f, f, PadVoiceModel::Crash),
+          fxDist() },
+        // 4. Ghost, très discret
+        { "Crash Ghost",
+          makePad(0.25f, 0.0f, 0.20f, 0.0005f, 0.0f, 0.012f, 0.28f, 0.01f, 1.00f, 6000.0f, 0.08f, f, PadVoiceModel::Crash),
+          fxClean() },
+        // 5. Bright commercial, perçant
+        { "Crash Bright",
+          makePad(0.54f, 3.0f, 0.18f, 0.0001f, 0.0f, 0.008f, 0.75f, 0.18f, 1.06f, 14000.0f, 0.16f, f, PadVoiceModel::Crash),
+          fxTransient() },
+        // 6. Dark underground, sourd
+        { "Crash Dark",
+          makePad(0.38f, -4.0f, 0.45f, 0.0008f, 1.0f, 0.018f, 0.32f, 0.02f, 1.00f, 3500.0f, 0.22f, f, PadVoiceModel::Crash),
+          fxWarm() },
+        // 7. Metallic ring, résonant
+        { "Crash Ring",
+          makePad(0.46f, 2.0f, 0.55f, 0.0006f, 0.5f, 0.020f, 0.35f, 0.03f, 1.02f, 4200.0f, 0.18f, f, PadVoiceModel::Crash),
+          fxRoom() },
+        // 8. Splash tight, percussif
+        { "Crash Splash",
+          makePad(0.48f, 5.0f, 0.04f, 0.0001f, 0.0f, 0.004f, 0.85f, 0.15f, 1.04f, 12000.0f, 0.12f, f, PadVoiceModel::Crash),
+          fxPunch() },
+        // 9. Ride bell, tonal
+        { "Ride Bell",
+          makePad(0.52f, -6.0f, 0.30f, 0.0003f, 3.0f, 0.015f, 0.20f, 0.08f, 1.00f, 3800.0f, 0.10f, f, PadVoiceModel::Crash),
+          fxRoom() },
+        // 10. China, agressif
+        { "Crash China",
+          makePad(0.50f, 1.0f, 0.22f, 0.0002f, 0.0f, 0.011f, 0.78f, 0.12f, 1.60f, 9500.0f, 0.14f, f, PadVoiceModel::Crash),
+          fxCrunch() },
+        // 11. Gong, très long, grave
+        { "Crash Gong",
+          makePad(0.44f, -8.0f, 0.80f, 0.002f, 2.0f, 0.028f, 0.30f, 0.01f, 1.00f, 2800.0f, 0.20f, f, PadVoiceModel::Crash),
+          fxHall() },
+        // 12. Gated, sec
+        { "Crash Gated",
+          makePad(0.46f, 0.0f, 0.25f, 0.0003f, 0.0f, 0.012f, 0.60f, 0.06f, 1.08f, 7000.0f, 0.16f, f, PadVoiceModel::Crash),
+          fxPunch() },
+        // 13. Sub crash, grave profond
+        { "Crash Sub",
+          makePad(0.48f, -5.0f, 0.60f, 0.001f, 4.0f, 0.024f, 0.25f, 0.01f, 1.00f, 2200.0f, 0.18f, f, PadVoiceModel::Crash),
+          fxSub() },
+        // 14. Click crash, très clicky
+        { "Crash Click",
+          makePad(0.52f, 6.0f, 0.06f, 0.0001f, 0.0f, 0.005f, 0.70f, 0.25f, 1.06f, 11000.0f, 0.10f, f, PadVoiceModel::Crash),
+          fxTransient() },
+        // 15. Soft, delicate
+        { "Crash Soft",
+          makePad(0.30f, 1.0f, 0.35f, 0.0006f, 0.5f, 0.016f, 0.38f, 0.02f, 1.00f, 5500.0f, 0.20f, f, PadVoiceModel::Crash),
+          fxClean() },
+        // 16. Noise crash, très bruyant
+        { "Crash Noise",
+          makePad(0.44f, -2.0f, 0.28f, 0.0003f, 0.0f, 0.013f, 0.92f, 0.05f, 1.02f, 8000.0f, 0.16f, f, PadVoiceModel::Crash),
+          fxClean() },
+        // 17. Distorted industrial
+        { "Crash Industrial",
+          makePad(0.50f, -1.0f, 0.12f, 0.0002f, 0.0f, 0.008f, 0.70f, 0.08f, 2.80f, 6500.0f, 0.12f, f, PadVoiceModel::Crash),
+          fxDist() },
+        // 18. Ride ping, court, tonal
+        { "Ride Ping",
+          makePad(0.50f, -4.0f, 0.18f, 0.0002f, 2.0f, 0.010f, 0.22f, 0.10f, 1.00f, 4500.0f, 0.08f, f, PadVoiceModel::Crash),
+          fxRoom() },
+        // 19. Stack, multiple couches
+        { "Crash Stack",
+          makePad(0.40f, 0.0f, 0.10f, 0.0002f, 0.0f, 0.007f, 0.80f, 0.12f, 1.04f, 10500.0f, 0.14f, f, PadVoiceModel::Crash),
+          fxTransient() },
+        // 20. Electro, chorus
+        { "Crash Electro",
+          makePad(0.46f, 2.0f, 0.20f, 0.0003f, 0.0f, 0.011f, 0.58f, 0.06f, 1.04f, 8500.0f, 0.16f, f, PadVoiceModel::Crash),
+          fxElectro() },
     };
 }
 
@@ -777,14 +1351,26 @@ static std::vector<PadPreset> makeFxPresets()
 {
     const float f = kPadCharacteristics[11].baseFrequencyHz;
     return {
-        { "FX Zip",        makePad(0.52f,  8.0f, 0.07f, 0.0002f, 14.0f, 0.018f, 0.02f, 0.12f, 1.04f, 4000.0f, -0.14f, f, PadVoiceModel::Fx) },
-        { "FX Sweep",      makePad(0.56f,  6.0f, 0.14f, 0.0003f, 12.0f, 0.030f, 0.03f, 0.10f, 1.02f, 3800.0f, -0.14f, f, PadVoiceModel::Fx) },
-        { "FX Impact",     makePad(0.60f,  0.0f, 0.10f, 0.0002f, 10.0f, 0.022f, 0.04f, 0.14f, 1.06f, 3200.0f, -0.14f, f, PadVoiceModel::Fx) },
-        { "FX Noise Burst",makePad(0.50f,  4.0f, 0.08f, 0.0002f,  8.0f, 0.020f, 0.08f, 0.10f, 1.02f, 5000.0f, -0.14f, f, PadVoiceModel::Fx) },
-        { "FX Sub Blip",   makePad(0.58f, -4.0f, 0.05f, 0.0001f, 16.0f, 0.016f, 0.01f, 0.08f, 1.00f, 1600.0f, -0.14f, f, PadVoiceModel::Fx) },
-        { "FX Metallic",   makePad(0.48f, 10.0f, 0.12f, 0.0002f,  6.0f, 0.025f, 0.06f, 0.12f, 1.04f, 5600.0f,  0.10f, f, PadVoiceModel::Fx) },
-        { "FX Glitch",     makePad(0.54f,  7.0f, 0.04f, 0.0001f, 12.0f, 0.014f, 0.05f, 0.16f, 1.08f, 6000.0f, -0.10f, f, PadVoiceModel::Fx) },
-        { "FX Drone",      makePad(0.44f,  2.0f, 0.30f, 0.0004f,  4.0f, 0.040f, 0.06f, 0.08f, 1.00f, 2800.0f, -0.14f, f, PadVoiceModel::Fx) },
+        { "FX Zap",        makePad(0.52f, 16.0f, 0.025f, 0.0001f, 24.0f, 0.010f, 0.02f, 0.16f, 1.06f, 6800.0f, -0.14f, f, PadVoiceModel::Fx), fxTransient() },
+        { "FX Sweep",      makePad(0.56f,  6.0f, 0.200f, 0.0003f, 18.0f, 0.038f, 0.04f, 0.08f, 1.02f, 3200.0f, -0.14f, f, PadVoiceModel::Fx), fxHall() },
+        { "FX Impact",     makePad(0.62f,  0.0f, 0.080f, 0.0002f, 10.0f, 0.018f, 0.06f, 0.14f, 1.08f, 2800.0f, -0.14f, f, PadVoiceModel::Fx), fxPunch() },
+        { "FX Drone",      makePad(0.44f,  2.0f, 0.380f, 0.0004f,  4.0f, 0.045f, 0.08f, 0.06f, 1.00f, 1800.0f, -0.14f, f, PadVoiceModel::Fx), fxHall() },
+        { "FX Glitch",     makePad(0.54f,  8.0f, 0.030f, 0.0001f, 20.0f, 0.010f, 0.10f, 0.18f, 2.40f, 7000.0f, -0.10f, f, PadVoiceModel::Fx), fxDist() },
+        { "FX Laser",      makePad(0.52f, 14.0f, 0.040f, 0.0001f, 22.0f, 0.012f, 0.02f, 0.15f, 1.06f, 7500.0f, -0.14f, f, PadVoiceModel::Fx), fxTransient() },
+        { "FX Boom",       makePad(0.58f, -8.0f, 0.150f, 0.0003f,  8.0f, 0.030f, 0.03f, 0.08f, 1.02f, 1200.0f, -0.14f, f, PadVoiceModel::Fx), fxSub() },
+        { "FX Noise Burst",makePad(0.50f,  4.0f, 0.060f, 0.0002f,  6.0f, 0.014f, 0.12f, 0.10f, 1.04f, 5200.0f, -0.14f, f, PadVoiceModel::Fx), fxCrunch() },
+        { "FX Sub Blip",   makePad(0.58f, -6.0f, 0.040f, 0.0001f, 16.0f, 0.012f, 0.01f, 0.08f, 1.00f, 1000.0f, -0.14f, f, PadVoiceModel::Fx), fxSub() },
+        { "FX Click",      makePad(0.52f, 10.0f, 0.020f, 0.0001f, 12.0f, 0.008f, 0.02f, 0.20f, 1.08f, 8000.0f, -0.14f, f, PadVoiceModel::Fx), fxTransient() },
+        { "FX Wobble",     makePad(0.50f,  5.0f, 0.250f, 0.0003f, 10.0f, 0.042f, 0.06f, 0.08f, 1.02f, 2400.0f, -0.14f, f, PadVoiceModel::Fx), fxElectro() },
+        { "FX Dist Hit",   makePad(0.54f,  1.0f, 0.050f, 0.0002f, 14.0f, 0.014f, 0.08f, 0.12f, 3.00f, 4000.0f, -0.14f, f, PadVoiceModel::Fx), fxDist() },
+        { "FX Chirp",      makePad(0.48f, 12.0f, 0.050f, 0.0002f, 20.0f, 0.014f, 0.03f, 0.14f, 1.04f, 6000.0f, -0.14f, f, PadVoiceModel::Fx), fxTransient() },
+        { "FX Shimmer",    makePad(0.46f,  8.0f, 0.300f, 0.0004f,  6.0f, 0.045f, 0.08f, 0.06f, 1.02f, 3500.0f,  0.10f, f, PadVoiceModel::Fx), fxHall() },
+        { "FX Soft Hit",   makePad(0.42f,  3.0f, 0.100f, 0.0003f,  5.0f, 0.022f, 0.03f, 0.05f, 1.00f, 2600.0f, -0.14f, f, PadVoiceModel::Fx), fxClean() },
+        { "FX Resonant",   makePad(0.50f,  5.0f, 0.180f, 0.0003f,  8.0f, 0.035f, 0.05f, 0.08f, 1.02f, 3000.0f, -0.14f, f, PadVoiceModel::Fx), fxRoom() },
+        { "FX Metallic",   makePad(0.48f, 10.0f, 0.080f, 0.0002f,  6.0f, 0.020f, 0.07f, 0.12f, 1.06f, 5800.0f,  0.10f, f, PadVoiceModel::Fx), fxCrunch() },
+        { "FX Ghost",      makePad(0.36f,  5.0f, 0.120f, 0.0003f,  6.0f, 0.025f, 0.02f, 0.04f, 1.00f, 2200.0f, -0.14f, f, PadVoiceModel::Fx), fxClean() },
+        { "FX Short Zap",  makePad(0.50f, 12.0f, 0.020f, 0.0001f, 18.0f, 0.008f, 0.02f, 0.18f, 1.06f, 7200.0f, -0.14f, f, PadVoiceModel::Fx), fxTransient() },
+        { "FX Rumble",     makePad(0.56f, -4.0f, 0.400f, 0.0004f,  2.0f, 0.048f, 0.06f, 0.06f, 1.04f, 1400.0f, -0.14f, f, PadVoiceModel::Fx), fxSub() },
     };
 }
 
@@ -815,58 +1401,64 @@ static void applyKitMetadata(KitPreset& preset)
 
     if (preset.name == "Classique Standard")
     {
-        set("Classique", "foundation", "Kit serre et polyvalent pour grooves generaux.", "master-ready", -1.0f, { "dry", "balanced", "punchy" });
+        set("Classique", "foundation", "Kit serre et polyvalent pour grooves generaux.", "master-ready", -2.3f, { "dry", "balanced", "punchy" });
         preset.fx.outputGainDb -= 0.80f;
     }
     else if (preset.name == "Classique Tight")
     {
-        set("Classique", "tight", "Version plus courte et plus stricte pour arrangements denses.", "master-ready", -0.7f, { "tight", "controlled", "dry" });
+        set("Classique", "tight", "Version plus courte et plus stricte pour arrangements denses.", "master-ready", -2.6f, { "tight", "controlled", "dry" });
         preset.fx.outputGainDb -= 0.40f;
     }
     else if (preset.name == "Classique Open")
     {
-        set("Classique", "open", "Version plus ample avec davantage d'air et de queue.", "master-ready", -1.0f, { "open", "roomy", "wide" });
+        set("Classique", "open", "Version plus ample avec davantage d'air et de queue.", "master-ready", -1.6f, { "open", "roomy", "wide" });
         preset.fx.outputGainDb -= 0.90f;
     }
     else if (preset.name == "Acoustique Room")
-        set("Acoustique", "natural", "Kit acoustique avec ambience de piece moderee.", "master-ready", -0.6f, { "natural", "room", "organic" });
+        set("Acoustique", "natural", "Kit acoustique avec ambience de piece moderee.", "master-ready", -2.7f, { "natural", "room", "organic" });
     else if (preset.name == "Acoustique Studio")
-        set("Acoustique", "mix-ready", "Kit acoustique plus compresse et recentre pour le mix.", "master-ready", -0.6f, { "studio", "focused", "mix-ready" });
+        set("Acoustique", "mix-ready", "Kit acoustique plus compresse et recentre pour le mix.", "master-ready", -1.9f, { "studio", "focused", "mix-ready" });
     else if (preset.name == "Acoustique Brush")
-        set("Acoustique", "soft", "Kit doux a balais et densite reduite.", "master-ready", -0.7f, { "soft", "brush", "organic" });
+        set("Acoustique", "soft", "Kit doux a balais et densite reduite.", "master-ready", -2.1f, { "soft", "brush", "organic" });
     else if (preset.name == "Acoustique Jazz")
     {
-        set("Acoustique", "airy", "Kit leger et ouvert pour jeu jazz ou fusion.", "master-ready", -0.6f, { "jazz", "airy", "light" });
-        preset.fx.outputGainDb -= 0.60f;
+        set("Acoustique", "airy", "Kit leger et ouvert pour jeu jazz ou fusion.", "master-ready", -3.1f, { "jazz", "airy", "light" });
+        preset.fx.outputGainDb -= 0.90f;
     }
     else if (preset.name == "Ambient Pad")
-        set("Ambient", "wash", "Kit ambient large avec longues queues et espace stereo.", "master-ready", -0.5f, { "ambient", "wide", "wash" });
+        set("Ambient", "wash", "Kit ambient large avec longues queues et espace stereo.", "master-ready", -3.7f, { "ambient", "wide", "wash" });
     else if (preset.name == "Ambient Dark")
     {
-        set("Ambient", "dark", "Kit sombre et plus retenu pour textures lentes.", "master-ready", -0.8f, { "ambient", "dark", "textured" });
+        set("Ambient", "dark", "Kit sombre et plus retenu pour textures lentes.", "master-ready", -4.4f, { "ambient", "dark", "textured" });
         preset.fx.outputGainDb -= 0.90f;
     }
     else if (preset.name == "Ambient Sparse")
-        set("Ambient", "sparse", "Kit eclairci et moins dense pour arrangements minimalistes.", "master-ready", -0.7f, { "ambient", "sparse", "minimal" });
+        set("Ambient", "sparse", "Kit eclairci et moins dense pour arrangements minimalistes.", "master-ready", -4.0f, { "ambient", "sparse", "minimal" });
     else if (preset.name == "Cinematique Epic")
     {
-        set("Cinematique", "cinematic", "Kit large et impactant pour trailers et percussion hybride.", "master-ready", -0.7f, { "cinematic", "epic", "wide" });
-        preset.fx.outputGainDb -= 0.70f;
+        set("Cinematique", "cinematic", "Kit large et impactant pour trailers et percussion hybride.", "master-ready", -1.4f, { "cinematic", "epic", "wide" });
+        preset.fx.outputGainDb -= 0.85f;
     }
     else if (preset.name == "Cinematique Tension")
-        set("Cinematique", "aggressive", "Version plus tendue et plus compressee pour pics de tension.", "master-ready", -0.5f, { "cinematic", "aggressive", "tense" });
+    {
+        set("Cinematique", "aggressive", "Version plus tendue et plus compressee pour pics de tension.", "master-ready", -2.7f, { "cinematic", "aggressive", "tense" });
+        preset.fx.outputGainDb -= 0.30f;
+    }
     else if (preset.name == "Cinematique Hybrid")
-        set("Cinematique", "hybrid", "Fusion acoustique-electronique avec delay et attaque renforcee.", "master-ready", -0.3f, { "cinematic", "hybrid", "designed" });
+        set("Cinematique", "hybrid", "Fusion acoustique-electronique avec delay et attaque renforcee.", "master-ready", -1.8f, { "cinematic", "hybrid", "designed" });
     else if (preset.name == "Cinematique Percussion")
-        set("Cinematique", "percussion-forward", "Version centree percussions et toms pour beds rythmiques.", "master-ready", -0.4f, { "cinematic", "percussion", "ensemble" });
+    {
+        set("Cinematique", "percussion-forward", "Version centree percussions et toms pour beds rythmiques.", "master-ready", -2.2f, { "cinematic", "percussion", "ensemble" });
+        preset.fx.outputGainDb -= 0.25f;
+    }
     else if (preset.name == "Moderne Club")
-        set("Moderne", "club", "Kit moderne dense et direct pour grooves dance et pop.", "master-ready", -0.6f, { "modern", "club", "punchy" });
+        set("Moderne", "club", "Kit moderne dense et direct pour grooves dance et pop.", "master-ready", -1.8f, { "modern", "club", "punchy" });
     else if (preset.name == "Moderne Lo-Fi")
-        set("Moderne", "lofi", "Kit degrade et assombri avec saturation et coupe haute.", "master-ready", -1.6f, { "modern", "lofi", "textured" });
+        set("Moderne", "lofi", "Kit degrade et assombri avec saturation et coupe haute.", "master-ready", -3.0f, { "modern", "lofi", "textured" });
     else if (preset.name == "Moderne Trap")
-        set("Moderne", "trap", "Kit sub-heavy et sec pour patterns trap et hip-hop modernes.", "master-ready", -0.6f, { "modern", "trap", "sub" });
+        set("Moderne", "trap", "Kit sub-heavy et sec pour patterns trap et hip-hop modernes.", "master-ready", -2.1f, { "modern", "trap", "sub" });
     else if (preset.name == "Moderne Electro")
-        set("Moderne", "electro", "Kit synthetique brillant avec chorus et delay synchronise.", "master-ready", -0.6f, { "modern", "electro", "synthetic" });
+        set("Moderne", "electro", "Kit synthetique brillant avec chorus et delay synchronise.", "master-ready", -1.8f, { "modern", "electro", "synthetic" });
     else
         set("User", "custom", "Kit sans categorisation editee.", "master-ready", -6.0f, { "custom" });
 }

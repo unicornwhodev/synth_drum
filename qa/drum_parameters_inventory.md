@@ -1,6 +1,6 @@
 # INVENTAIRE EXHAUSTIF DES PARAMETRES - SYNTH DRUM (MDR)
 
-> Plugin: **UWdeVST Drum** | Namespace: `mdr::` | 12 pads | 5 familles | **296 parametres APVTS**
+> Plugin: **UWdeVST Drum** | Namespace: `mdr::` | 12 pads | 5 familles | **332 parametres APVTS**
 
 ---
 
@@ -32,7 +32,7 @@ juce::String makeDrumParamId(int padIndex, const juce::String& suffix)
 
 ---
 
-## 2. PARAMETRES PAR PAD (12 parametres universels x 12 pads = 144)
+## 2. PARAMETRES PAR PAD (15 parametres universels x 12 pads = 180)
 
 | # | Parameter ID | Nom Affiche | Type | Min | Max | Default | Step | Notes |
 |---|-------------|-------------|------|-----|-----|---------|------|-------|
@@ -48,6 +48,9 @@ juce::String makeDrumParamId(int padIndex, const juce::String& suffix)
 | 10 | `pad_<n>_cutoff` | Cutoff | Float | 120.0 Hz | 18000.0 Hz | 3000.0 | skew 0.28 | Frequence de coupure filtre |
 | 11 | `pad_<n>_pan` | Pan | Float | -1.0 | 1.0 | 0.0 | 0.001 | Placement stereo |
 | 12 | `pad_<n>_output` | Output | Choice | - | - | Out 1 | - | Routage: Master ou Out 1-12 |
+| 13 | `pad_<n>_vel_to_click` | Vel to Click | Float | 0.0 | 1.0 | 0.5 | 0.0001 | Sensibilite de la velocite au click |
+| 14 | `pad_<n>_rev_send` | Rev Send | Float | 0.0 | 1.0 | 0.0 | 0.0001 | Envoi individuel vers la reverb |
+| 15 | `pad_<n>_dly_send` | Dly Send | Float | 0.0 | 1.0 | 0.0 | 0.0001 | Envoi individuel vers le delay |
 
 > Defaults varient par pad. Valeurs ci-dessus = Kick A (pad 0).
 
@@ -244,8 +247,8 @@ juce::String makeDrumParamId(int padIndex, const juce::String& suffix)
 
 | Categorie | Nombre |
 |-----------|--------|
-| Parametres universels par pad (x12) | 144 |
+| Parametres universels par pad (x12) | 180 |
 | Parametres voix specifiques | 96 |
 | Parametres globaux (master, macros, LFO, humanise, routing) | 15 |
 | Parametres FX globaux (enables + knobs) | 41 |
-| **TOTAL APVTS** | **296** |
+| **TOTAL APVTS** | **332** |

@@ -105,13 +105,13 @@ inline void DrumEnvelope::paint(juce::Graphics& g)
     g.strokePath(curve, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
     // Control points
-    auto drawPoint = [&](juce::Point<float> p, const juce::String& pointLabel)
+    auto drawPoint = [&](juce::Point<float> p, const juce::String& label)
     {
         g.setColour(UITheme::accentOrange());
         g.fillEllipse(p.x - 3.0f, p.y - 3.0f, 6.0f, 6.0f);
         g.setColour(UITheme::textMain());
         g.setFont(UITheme::fontMicro());
-        g.drawText(pointLabel, juce::roundToInt(p.x - 10.0f), juce::roundToInt(p.y - 14.0f), 20, 10, juce::Justification::centred);
+        g.drawText(label, p.x - 10.0f, p.y - 14.0f, 20.0f, 10.0f, juce::Justification::centred);
     };
 
     drawPoint(p1, "A");

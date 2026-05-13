@@ -1,6 +1,8 @@
 # Musique Drum Synth V2
 
-Synth drum 12 pads pour Windows `Standalone` et `VST3`, calibre pour un usage studio polyvalent avec compatibilite stricte des IDs APVTS, rappel projet fiable et banque preset editorialisee.
+Synth drum hybride leger 12 pads pour Windows `Standalone` et `VST3`, calibre pour beat sketch, production synthetique et kits stylises avec compatibilite stricte des IDs APVTS, rappel projet fiable et banque preset editorialisee.
+
+Positionnement release : `UWdeVST_Drum` est un drum synth procedural / hybrid, pas un remplacement premium de Battery, Superior Drummer ni d'un kit acoustique multi-sample realiste. Les familles `Acoustique`, `Ambient` et `Cinematique` sont des couleurs de production issues du moteur synthetique; elles ne promettent pas le realisme d'une batterie samplee haut de gamme.
 
 ## Produit
 
@@ -89,10 +91,12 @@ Synth drum 12 pads pour Windows `Standalone` et `VST3`, calibre pour un usage st
 Le renderer console fournit la batterie QA de reference:
 
 ```bash
-.\build\UWdeVST_drum_renderer_artefacts\Release\UWdeVST_drum_renderer.exe --validate-presets
+.\build\UWdeVST_drum_tests_artefacts\Release\UWdeVST_drum_tests.exe
+.\build\UWdeVST_drum_renderer_artefacts\Release\UWdeVST_drum_renderer.exe --validate-presets --report .\qa\drum_preset_qa_report.csv
 .\build\UWdeVST_drum_renderer_artefacts\Release\UWdeVST_drum_renderer.exe --validate-matrix
-.\build\UWdeVST_drum_renderer_artefacts\Release\UWdeVST_drum_renderer.exe --benchmark
-.\build\UWdeVST_drum_renderer_artefacts\Release\UWdeVST_drum_renderer.exe --benchmark --baseline .\qa\drum_cpu_benchmark.csv
+.\build\UWdeVST_drum_renderer_artefacts\Release\UWdeVST_drum_renderer.exe --benchmark --report .\qa\drum_cpu_benchmark.csv
+.\build\UWdeVST_drum_renderer_artefacts\Release\UWdeVST_drum_renderer.exe --benchmark --baseline .\qa\drum_cpu_benchmark.csv --report .\qa\drum_cpu_benchmark.csv
+.\build\UWdeVST_drum_renderer_artefacts\Release\UWdeVST_drum_renderer.exe --render-release-suite --output-base .\qa\drum_release_suite --report .\qa\drum_release_suite_report.csv
 ```
 
 Couverture actuelle:
@@ -107,7 +111,8 @@ Couverture actuelle:
   - round-trip des nouveaux params globaux (`quality_mode`, `delay_sync`, `velocity_curve`, `humanize`)
   - securite aux
   - round-trip preset
-  - rapport CSV par kit: peak, RMS, crest factor, tail, stereo, output profile et completude metadata
+  - rapport CSV par kit: peak, RMS, crest factor, tail, stereo, output profile, completude metadata et `status`
+  - gate release: `2070/2070 passed`, aucun `status=FAIL`, peak kit `<= -0.3 dBFS`, metadata nominale coherente a `+/-1.5 dB`
 - `validate-matrix`
   - verification audio rendue par groupes `Kick`, `Snare`, `Hat`, `Crash`, `FX`
   - metriques: peak, densite haute frequence, queue, stereo
@@ -118,6 +123,19 @@ Couverture actuelle:
   - `Hat Choke`
   - `FX Chain`
   - export CSV avec baseline optionnelle et echec si regression CPU > `20%`
+  - gate release: peak CPU sous `5%`
+- `render-release-suite`
+  - rend `main.wav`, quatre stems et douze fichiers identity
+  - exporte `qa/drum_release_suite_report.csv`
+  - gate release: `17/17 checks passed`, Main sous `-1 dBFS`, aucun fichier silencieux, clippe ou non fini
+
+Ecoute P1 obligatoire avant RC:
+
+- groove lent avec kicks, snare et hats
+- groove rapide avec hats repetes et choke
+- fill toms/percussions
+- kit cinematic dense avec controle de headroom
+- mini-mix bass/drum pour verifier lisibilite et masquage
 
 ## Build
 

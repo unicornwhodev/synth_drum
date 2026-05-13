@@ -1,6 +1,10 @@
 build/
 build-*/
 build_standalone_local/
+release_candidate/
+qa/drum_release_suite/
+installer/output/
+installer/staging/
 .vs/
 JUCE/
 CMakeUserPresets.json
