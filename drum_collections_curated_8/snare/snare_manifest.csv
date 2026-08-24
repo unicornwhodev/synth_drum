@@ -1,0 +1,9 @@
+family,instrument_folder,instrument_name,rank,preset_name,source_type,source_relpath,imported_xml_relpath,selection_score,quality_status,flags,peak_dbfs,rms_dbfs,crest_db,duration_sec,root_tag,slot_count,pad_index,tags
+drum,snare,Snare,1,Drum Snare 01 Snare 808,audio_to_drum_preset,output/drum/presets/snare_808.xml,snare/01_snare_808.xml,89.500,pass,,,,,0.736,FactoryPreset,,2,
+drum,snare,Snare,2,Drum Snare 02 Snare Brush,audio_to_drum_preset,output/drum/presets/snare_brush.xml,snare/02_snare_brush.xml,89.500,pass,,,,,0.991,FactoryPreset,,2,
+drum,snare,Snare,3,Drum Snare 03 Snare Crack,audio_to_drum_preset,output/drum/presets/snare_crack.xml,snare/03_snare_crack.xml,89.500,pass,,,,,0.568,FactoryPreset,,2,
+drum,snare,Snare,4,Drum Snare 04 Snare Dark,audio_to_drum_preset,output/drum/presets/snare_dark.xml,snare/04_snare_dark.xml,89.500,pass,,,,,0.805,FactoryPreset,,2,
+drum,snare,Snare,5,Drum Snare 05 Snare Fat,audio_to_drum_preset,output/drum/presets/snare_fat.xml,snare/05_snare_fat.xml,89.500,pass,,,,,0.785,FactoryPreset,,2,
+drum,snare,Snare,6,Drum Snare 06 Snare Pop,audio_to_drum_preset,output/drum/presets/snare_pop.xml,snare/06_snare_pop.xml,89.500,pass,,,,,0.540,FactoryPreset,,2,
+drum,snare,Snare,7,Drum Snare 07 Snare Punch,audio_to_drum_preset,output/drum/presets/snare_punch.xml,snare/07_snare_punch.xml,89.500,pass,,,,,0.558,FactoryPreset,,2,
+drum,snare,Snare,8,Drum Snare 08 Snare Tight,audio_to_drum_preset,output/drum/presets/snare_tight.xml,snare/08_snare_tight.xml,89.500,pass,,,,,0.483,FactoryPreset,,2,

@@ -1,0 +1,9 @@
+family,instrument_folder,instrument_name,rank,preset_name,source_type,source_relpath,imported_xml_relpath,selection_score,quality_status,flags,peak_dbfs,rms_dbfs,crest_db,duration_sec,root_tag,slot_count,pad_index,tags
+drum,crash,Crash,1,Drum Crash 01 Crash Bright,audio_to_drum_preset,output/drum/presets/crash_bright.xml,crash/01_crash_bright.xml,89.500,pass,,,,,0.704,FactoryPreset,,10,
+drum,crash,Crash,2,Drum Crash 02 Crash Dark,audio_to_drum_preset,output/drum/presets/crash_dark.xml,crash/02_crash_dark.xml,89.500,pass,,,,,1.049,FactoryPreset,,10,
+drum,crash,Crash,3,Drum Crash 03 Crash Fat,audio_to_drum_preset,output/drum/presets/crash_fat.xml,crash/03_crash_fat.xml,89.500,pass,,,,,0.962,FactoryPreset,,10,
+drum,crash,Crash,4,Drum Crash 04 Crash Gong,audio_to_drum_preset,output/drum/presets/crash_gong.xml,crash/04_crash_gong.xml,89.500,pass,,,,,2.410,FactoryPreset,,10,
+drum,crash,Crash,5,Drum Crash 05 Crash Long,audio_to_drum_preset,output/drum/presets/crash_long.xml,crash/05_crash_long.xml,89.500,pass,,,,,1.838,FactoryPreset,,10,
+drum,crash,Crash,6,Drum Crash 06 Crash Sizzle,audio_to_drum_preset,output/drum/presets/crash_sizzle.xml,crash/06_crash_sizzle.xml,89.500,pass,,,,,1.132,FactoryPreset,,10,
+drum,crash,Crash,7,Drum Crash 07 Crash Splash,audio_to_drum_preset,output/drum/presets/crash_splash.xml,crash/07_crash_splash.xml,89.500,pass,,,,,0.545,FactoryPreset,,10,
+drum,crash,Crash,8,Drum Crash 08 Crash Wash,audio_to_drum_preset,output/drum/presets/crash_wash.xml,crash/08_crash_wash.xml,89.500,pass,,,,,1.958,FactoryPreset,,10,

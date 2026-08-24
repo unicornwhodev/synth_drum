@@ -1,0 +1,9 @@
+family,instrument_folder,instrument_name,rank,preset_name,source_type,source_relpath,imported_xml_relpath,selection_score,quality_status,flags,peak_dbfs,rms_dbfs,crest_db,duration_sec,root_tag,slot_count,pad_index,tags
+drum,hat_closed,Hat Closed,1,Drum Hat Closed 01 Hh Acid,audio_to_drum_preset,output/drum/presets/hh_acid.xml,hat_closed/01_hh_acid.xml,89.500,pass,,,,,0.402,FactoryPreset,,4,
+drum,hat_closed,Hat Closed,2,Drum Hat Closed 02 Hh Bright,audio_to_drum_preset,output/drum/presets/hh_bright.xml,hat_closed/02_hh_bright.xml,89.500,pass,,,,,0.405,FactoryPreset,,4,
+drum,hat_closed,Hat Closed,3,Drum Hat Closed 03 Hh Dark,audio_to_drum_preset,output/drum/presets/hh_dark.xml,hat_closed/03_hh_dark.xml,89.500,pass,,,,,0.386,FactoryPreset,,4,
+drum,hat_closed,Hat Closed,4,Drum Hat Closed 04 Hh Dry,audio_to_drum_preset,output/drum/presets/hh_dry.xml,hat_closed/04_hh_dry.xml,89.500,pass,,,,,0.369,FactoryPreset,,4,
+drum,hat_closed,Hat Closed,5,Drum Hat Closed 05 Hh Fat,audio_to_drum_preset,output/drum/presets/hh_fat.xml,hat_closed/05_hh_fat.xml,89.500,pass,,,,,0.415,FactoryPreset,,4,
+drum,hat_closed,Hat Closed,6,Drum Hat Closed 06 Hh Gritty,audio_to_drum_preset,output/drum/presets/hh_gritty.xml,hat_closed/06_hh_gritty.xml,89.500,pass,,,,,0.404,FactoryPreset,,4,
+drum,hat_closed,Hat Closed,7,Drum Hat Closed 07 Hh Sizzle,audio_to_drum_preset,output/drum/presets/hh_sizzle.xml,hat_closed/07_hh_sizzle.xml,89.500,pass,,,,,0.454,FactoryPreset,,4,
+drum,hat_closed,Hat Closed,8,Drum Hat Closed 08 Hh Tight 2,audio_to_drum_preset,output/drum/presets/hh_tight_2.xml,hat_closed/08_hh_tight_2.xml,89.500,pass,,,,,0.372,FactoryPreset,,4,

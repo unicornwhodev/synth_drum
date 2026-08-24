@@ -1,0 +1,9 @@
+family,instrument_folder,instrument_name,rank,preset_name,source_type,source_relpath,imported_xml_relpath,selection_score,quality_status,flags,peak_dbfs,rms_dbfs,crest_db,duration_sec,root_tag,slot_count,pad_index,tags
+drum,hat_open,Hat Open,1,Drum Hat Open 01 Hh Open Bright,audio_to_drum_preset,output/drum/presets/hh_open_bright.xml,hat_open/01_hh_open_bright.xml,89.500,pass,,,,,0.437,FactoryPreset,,5,
+drum,hat_open,Hat Open,2,Drum Hat Open 02 Hh Open Dark,audio_to_drum_preset,output/drum/presets/hh_open_dark.xml,hat_open/02_hh_open_dark.xml,89.500,pass,,,,,0.586,FactoryPreset,,5,
+drum,hat_open,Hat Open,3,Drum Hat Open 03 Hh Open Fat,audio_to_drum_preset,output/drum/presets/hh_open_fat.xml,hat_open/03_hh_open_fat.xml,89.500,pass,,,,,0.508,FactoryPreset,,5,
+drum,hat_open,Hat Open,4,Drum Hat Open 04 Hh Open Long,audio_to_drum_preset,output/drum/presets/hh_open_long.xml,hat_open/04_hh_open_long.xml,89.500,pass,,,,,0.941,FactoryPreset,,5,
+drum,hat_open,Hat Open,5,Drum Hat Open 05 Hh Open Loose,audio_to_drum_preset,output/drum/presets/hh_open_loose.xml,hat_open/05_hh_open_loose.xml,89.500,pass,,,,,0.615,FactoryPreset,,5,
+drum,hat_open,Hat Open,6,Drum Hat Open 06 Hh Open Short,audio_to_drum_preset,output/drum/presets/hh_open_short.xml,hat_open/06_hh_open_short.xml,89.500,pass,,,,,0.419,FactoryPreset,,5,
+drum,hat_open,Hat Open,7,Drum Hat Open 07 Hh Open Sizzle,audio_to_drum_preset,output/drum/presets/hh_open_sizzle.xml,hat_open/07_hh_open_sizzle.xml,89.500,pass,,,,,0.573,FactoryPreset,,5,
+drum,hat_open,Hat Open,8,Drum Hat Open 08 Hh Open Wash,audio_to_drum_preset,output/drum/presets/hh_open_wash.xml,hat_open/08_hh_open_wash.xml,89.500,pass,,,,,0.945,FactoryPreset,,5,

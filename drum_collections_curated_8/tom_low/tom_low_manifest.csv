@@ -1,0 +1,9 @@
+family,instrument_folder,instrument_name,rank,preset_name,source_type,source_relpath,imported_xml_relpath,selection_score,quality_status,flags,peak_dbfs,rms_dbfs,crest_db,duration_sec,root_tag,slot_count,pad_index,tags
+drum,tom_low,Tom Low,1,Drum Tom Low 01 Tom Low Acoustic,audio_to_drum_preset,output/drum/presets/tom_low_acoustic.xml,tom_low/01_tom_low_acoustic.xml,89.500,pass,,,,,0.838,FactoryPreset,,8,
+drum,tom_low,Tom Low,2,Drum Tom Low 02 Tom Low Analog,audio_to_drum_preset,output/drum/presets/tom_low_analog.xml,tom_low/02_tom_low_analog.xml,89.500,pass,,,,,0.834,FactoryPreset,,8,
+drum,tom_low,Tom Low,3,Drum Tom Low 03 Tom Low Boom,audio_to_drum_preset,output/drum/presets/tom_low_boom.xml,tom_low/03_tom_low_boom.xml,89.500,pass,,,,,1.420,FactoryPreset,,8,
+drum,tom_low,Tom Low,4,Drum Tom Low 04 Tom Low Deep,audio_to_drum_preset,output/drum/presets/tom_low_deep.xml,tom_low/04_tom_low_deep.xml,89.500,pass,,,,,1.109,FactoryPreset,,8,
+drum,tom_low,Tom Low,5,Drum Tom Low 05 Tom Low Fat,audio_to_drum_preset,output/drum/presets/tom_low_fat.xml,tom_low/05_tom_low_fat.xml,89.500,pass,,,,,0.903,FactoryPreset,,8,
+drum,tom_low,Tom Low,6,Drum Tom Low 06 Tom Low Punch,audio_to_drum_preset,output/drum/presets/tom_low_punch.xml,tom_low/06_tom_low_punch.xml,89.500,pass,,,,,0.681,FactoryPreset,,8,
+drum,tom_low,Tom Low,7,Drum Tom Low 07 Tom Low Resonant,audio_to_drum_preset,output/drum/presets/tom_low_resonant.xml,tom_low/07_tom_low_resonant.xml,89.500,pass,,,,,1.162,FactoryPreset,,8,
+drum,tom_low,Tom Low,8,Drum Tom Low 08 Tom Low Tight,audio_to_drum_preset,output/drum/presets/tom_low_tight.xml,tom_low/08_tom_low_tight.xml,89.500,pass,,,,,0.596,FactoryPreset,,8,

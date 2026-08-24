@@ -1,0 +1,9 @@
+family,instrument_folder,instrument_name,rank,preset_name,source_type,source_relpath,imported_xml_relpath,selection_score,quality_status,flags,peak_dbfs,rms_dbfs,crest_db,duration_sec,root_tag,slot_count,pad_index,tags
+drum,fx,FX,1,Drum FX 01 Fx Boom,audio_to_drum_preset,output/drum/presets/fx_boom.xml,fx/01_fx_boom.xml,89.500,pass,,,,,0.795,FactoryPreset,,11,
+drum,fx,FX,2,Drum FX 02 Fx Glitch,audio_to_drum_preset,output/drum/presets/fx_glitch.xml,fx/02_fx_glitch.xml,89.500,pass,,,,,0.608,FactoryPreset,,11,
+drum,fx,FX,3,Drum FX 03 Fx Impact,audio_to_drum_preset,output/drum/presets/fx_impact.xml,fx/03_fx_impact.xml,89.500,pass,,,,,0.667,FactoryPreset,,11,
+drum,fx,FX,4,Drum FX 04 Fx Laser,audio_to_drum_preset,output/drum/presets/fx_laser.xml,fx/04_fx_laser.xml,89.500,pass,,,,,0.477,FactoryPreset,,11,
+drum,fx,FX,5,Drum FX 05 Fx Metallic,audio_to_drum_preset,output/drum/presets/fx_metallic.xml,fx/05_fx_metallic.xml,89.500,pass,,,,,0.619,FactoryPreset,,11,
+drum,fx,FX,6,Drum FX 06 Fx Shimmer,audio_to_drum_preset,output/drum/presets/fx_shimmer.xml,fx/06_fx_shimmer.xml,89.500,pass,,,,,1.310,FactoryPreset,,11,
+drum,fx,FX,7,Drum FX 07 Fx Short Zap,audio_to_drum_preset,output/drum/presets/fx_short_zap.xml,fx/07_fx_short_zap.xml,89.500,pass,,,,,0.439,FactoryPreset,,11,
+drum,fx,FX,8,Drum FX 08 Fx Sweep,audio_to_drum_preset,output/drum/presets/fx_sweep.xml,fx/08_fx_sweep.xml,89.500,pass,,,,,1.090,FactoryPreset,,11,

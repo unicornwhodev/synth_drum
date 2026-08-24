@@ -1,0 +1,9 @@
+family,instrument_folder,instrument_name,rank,preset_name,source_type,source_relpath,imported_xml_relpath,selection_score,quality_status,flags,peak_dbfs,rms_dbfs,crest_db,duration_sec,root_tag,slot_count,pad_index,tags
+drum,kick_b,Kick B,1,Drum Kick B 01 Kick B Accent,audio_to_drum_preset,output/drum/presets/kick_b_accent.xml,kick_b/01_kick_b_accent.xml,89.500,pass,,,,,0.866,FactoryPreset,,1,
+drum,kick_b,Kick B,2,Drum Kick B 02 Kick B Analog,audio_to_drum_preset,output/drum/presets/kick_b_analog.xml,kick_b/02_kick_b_analog.xml,89.500,pass,,,,,0.925,FactoryPreset,,1,
+drum,kick_b,Kick B,3,Drum Kick B 03 Kick B Attack,audio_to_drum_preset,output/drum/presets/kick_b_attack.xml,kick_b/03_kick_b_attack.xml,89.500,pass,,,,,0.762,FactoryPreset,,1,
+drum,kick_b,Kick B,4,Drum Kick B 04 Kick B Boomy,audio_to_drum_preset,output/drum/presets/kick_b_boomy.xml,kick_b/04_kick_b_boomy.xml,89.500,pass,,,,,1.354,FactoryPreset,,1,
+drum,kick_b,Kick B,5,Drum Kick B 05 Kick B Clicky,audio_to_drum_preset,output/drum/presets/kick_b_clicky.xml,kick_b/05_kick_b_clicky.xml,89.500,pass,,,,,0.674,FactoryPreset,,1,
+drum,kick_b,Kick B,6,Drum Kick B 06 Kick B Fat,audio_to_drum_preset,output/drum/presets/kick_b_fat.xml,kick_b/06_kick_b_fat.xml,89.500,pass,,,,,1.116,FactoryPreset,,1,
+drum,kick_b,Kick B,7,Drum Kick B 07 Kick B Hard,audio_to_drum_preset,output/drum/presets/kick_b_hard.xml,kick_b/07_kick_b_hard.xml,89.500,pass,,,,,0.765,FactoryPreset,,1,
+drum,kick_b,Kick B,8,Drum Kick B 08 Kick B Pop,audio_to_drum_preset,output/drum/presets/kick_b_pop.xml,kick_b/08_kick_b_pop.xml,89.500,pass,,,,,0.807,FactoryPreset,,1,

@@ -1,0 +1,9 @@
+family,instrument_folder,instrument_name,rank,preset_name,source_type,source_relpath,imported_xml_relpath,selection_score,quality_status,flags,peak_dbfs,rms_dbfs,crest_db,duration_sec,root_tag,slot_count,pad_index,tags
+drum,clap,Clap,1,Drum Clap 01 Clap 808,audio_to_drum_preset,output/drum/presets/clap_808.xml,clap/01_clap_808.xml,89.500,pass,,,,,0.576,FactoryPreset,,3,
+drum,clap,Clap,2,Drum Clap 02 Clap Bright,audio_to_drum_preset,output/drum/presets/clap_bright.xml,clap/02_clap_bright.xml,89.500,pass,,,,,0.634,FactoryPreset,,3,
+drum,clap,Clap,3,Drum Clap 03 Clap Dry,audio_to_drum_preset,output/drum/presets/clap_dry.xml,clap/03_clap_dry.xml,89.500,pass,,,,,0.523,FactoryPreset,,3,
+drum,clap,Clap,4,Drum Clap 04 Clap Fat,audio_to_drum_preset,output/drum/presets/clap_fat.xml,clap/04_clap_fat.xml,89.500,pass,,,,,0.623,FactoryPreset,,3,
+drum,clap,Clap,5,Drum Clap 05 Clap Layered,audio_to_drum_preset,output/drum/presets/clap_layered.xml,clap/05_clap_layered.xml,89.500,pass,,,,,0.774,FactoryPreset,,3,
+drum,clap,Clap,6,Drum Clap 06 Clap Slap,audio_to_drum_preset,output/drum/presets/clap_slap.xml,clap/06_clap_slap.xml,89.500,pass,,,,,0.487,FactoryPreset,,3,
+drum,clap,Clap,7,Drum Clap 07 Clap Snap,audio_to_drum_preset,output/drum/presets/clap_snap.xml,clap/07_clap_snap.xml,89.500,pass,,,,,0.614,FactoryPreset,,3,
+drum,clap,Clap,8,Drum Clap 08 Clap Tight,audio_to_drum_preset,output/drum/presets/clap_tight.xml,clap/08_clap_tight.xml,89.500,pass,,,,,0.595,FactoryPreset,,3,

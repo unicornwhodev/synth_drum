@@ -1,0 +1,9 @@
+family,instrument_folder,instrument_name,rank,preset_name,source_type,source_relpath,imported_xml_relpath,selection_score,quality_status,flags,peak_dbfs,rms_dbfs,crest_db,duration_sec,root_tag,slot_count,pad_index,tags
+drum,perc_2,Perc 2,1,Drum Perc 2 01 Metal Bright,audio_to_drum_preset,output/drum/presets/metal_bright.xml,perc_2/01_metal_bright.xml,91.500,pass,,,,,0.606,FactoryPreset,,7,
+drum,perc_2,Perc 2,2,Drum Perc 2 02 Metal Dry,audio_to_drum_preset,output/drum/presets/metal_dry.xml,perc_2/02_metal_dry.xml,91.500,pass,,,,,0.528,FactoryPreset,,7,
+drum,perc_2,Perc 2,3,Drum Perc 2 03 Metal Ring,audio_to_drum_preset,output/drum/presets/metal_ring.xml,perc_2/03_metal_ring.xml,91.500,pass,,,,,1.134,FactoryPreset,,7,
+drum,perc_2,Perc 2,4,Drum Perc 2 04 Bell Tone,audio_to_drum_preset,output/drum/presets/bell_tone.xml,perc_2/04_bell_tone.xml,89.500,pass,,,,,1.046,FactoryPreset,,7,
+drum,perc_2,Perc 2,5,Drum Perc 2 05 Cowbell,audio_to_drum_preset,output/drum/presets/cowbell.xml,perc_2/05_cowbell.xml,89.500,pass,,,,,0.849,FactoryPreset,,7,
+drum,perc_2,Perc 2,6,Drum Perc 2 06 Metal Click,audio_to_drum_preset,output/drum/presets/metal_click.xml,perc_2/06_metal_click.xml,89.500,pass,,,,,0.532,FactoryPreset,,7,
+drum,perc_2,Perc 2,7,Drum Perc 2 07 Metal Dark,audio_to_drum_preset,output/drum/presets/metal_dark.xml,perc_2/07_metal_dark.xml,89.500,pass,,,,,0.789,FactoryPreset,,7,
+drum,perc_2,Perc 2,8,Drum Perc 2 08 Metal Dist,audio_to_drum_preset,output/drum/presets/metal_dist.xml,perc_2/08_metal_dist.xml,89.500,pass,,,,,0.714,FactoryPreset,,7,

@@ -1,0 +1,9 @@
+family,instrument_folder,instrument_name,rank,preset_name,source_type,source_relpath,imported_xml_relpath,selection_score,quality_status,flags,peak_dbfs,rms_dbfs,crest_db,duration_sec,root_tag,slot_count,pad_index,tags
+drum,tom_high,Tom High,1,Drum Tom High 01 Tom High Acoustic,audio_to_drum_preset,output/drum/presets/tom_high_acoustic.xml,tom_high/01_tom_high_acoustic.xml,89.500,pass,,,,,0.826,FactoryPreset,,9,
+drum,tom_high,Tom High,2,Drum Tom High 02 Tom High Analog,audio_to_drum_preset,output/drum/presets/tom_high_analog.xml,tom_high/02_tom_high_analog.xml,89.500,pass,,,,,0.748,FactoryPreset,,9,
+drum,tom_high,Tom High,3,Drum Tom High 03 Tom High Big,audio_to_drum_preset,output/drum/presets/tom_high_big.xml,tom_high/03_tom_high_big.xml,89.500,pass,,,,,1.200,FactoryPreset,,9,
+drum,tom_high,Tom High,4,Drum Tom High 04 Tom High Bright,audio_to_drum_preset,output/drum/presets/tom_high_bright.xml,tom_high/04_tom_high_bright.xml,89.500,pass,,,,,0.664,FactoryPreset,,9,
+drum,tom_high,Tom High,5,Drum Tom High 05 Tom High Crisp,audio_to_drum_preset,output/drum/presets/tom_high_crisp.xml,tom_high/05_tom_high_crisp.xml,89.500,pass,,,,,0.677,FactoryPreset,,9,
+drum,tom_high,Tom High,6,Drum Tom High 06 Tom High Fat,audio_to_drum_preset,output/drum/presets/tom_high_fat.xml,tom_high/06_tom_high_fat.xml,89.500,pass,,,,,0.806,FactoryPreset,,9,
+drum,tom_high,Tom High,7,Drum Tom High 07 Tom High Punch,audio_to_drum_preset,output/drum/presets/tom_high_punch.xml,tom_high/07_tom_high_punch.xml,89.500,pass,,,,,0.642,FactoryPreset,,9,
+drum,tom_high,Tom High,8,Drum Tom High 08 Tom High Tight,audio_to_drum_preset,output/drum/presets/tom_high_tight.xml,tom_high/08_tom_high_tight.xml,89.500,pass,,,,,0.671,FactoryPreset,,9,

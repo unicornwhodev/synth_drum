@@ -1,0 +1,9 @@
+family,instrument_folder,instrument_name,rank,preset_name,source_type,source_relpath,imported_xml_relpath,selection_score,quality_status,flags,peak_dbfs,rms_dbfs,crest_db,duration_sec,root_tag,slot_count,pad_index,tags
+drum,kick_a,Kick A,1,Drum Kick A 01 Kick 808,audio_to_drum_preset,output/drum/presets/kick_808.xml,kick_a/01_kick_808.xml,89.500,pass,,,,,1.838,FactoryPreset,,0,
+drum,kick_a,Kick A,2,Drum Kick A 02 Kick Acoustic,audio_to_drum_preset,output/drum/presets/kick_acoustic.xml,kick_a/02_kick_acoustic.xml,89.500,pass,,,,,1.280,FactoryPreset,,0,
+drum,kick_a,Kick A,3,Drum Kick A 03 Kick Boomy,audio_to_drum_preset,output/drum/presets/kick_boomy.xml,kick_a/03_kick_boomy.xml,89.500,pass,,,,,1.926,FactoryPreset,,0,
+drum,kick_a,Kick A,4,Drum Kick A 04 Kick Punchy,audio_to_drum_preset,output/drum/presets/kick_punchy.xml,kick_a/04_kick_punchy.xml,89.500,pass,,,,,0.919,FactoryPreset,,0,
+drum,kick_a,Kick A,5,Drum Kick A 05 Kick Tight,audio_to_drum_preset,output/drum/presets/kick_tight.xml,kick_a/05_kick_tight.xml,89.500,pass,,,,,0.784,FactoryPreset,,0,
+drum,kick_a,Kick A,6,Drum Kick A 06 Kick Click,audio_to_drum_preset,output/drum/presets/kick_click.xml,kick_a/06_kick_click.xml,87.500,pass,,,,,0.878,FactoryPreset,,0,
+drum,kick_a,Kick A,7,Drum Kick A 07 Kick Deep,audio_to_drum_preset,output/drum/presets/kick_deep.xml,kick_a/07_kick_deep.xml,87.500,pass,,,,,1.396,FactoryPreset,,0,
+drum,kick_a,Kick A,8,Drum Kick A 08 Kick Distort,audio_to_drum_preset,output/drum/presets/kick_distort.xml,kick_a/08_kick_distort.xml,87.500,pass,,,,,0.964,FactoryPreset,,0,
