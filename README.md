@@ -14,7 +14,7 @@
   <a href="https://github.com/unicornwhodev/synth_drum/issues/new/choose">Report an issue</a>
 </p>
 
-**Windows x64 · VST3 · Standalone**
+**Windows x64 · Linux x86_64 · macOS Universal builder · VST3 · Standalone**
 
 - 12 drum pads
 - 18 factory kits
@@ -29,7 +29,7 @@ The license included with each tagged release governs that release. The v1.0 lic
 
 # uwdevst_drum
 
-Free Windows x64 drum synthesizer from the UWdeVST collection.
+Free multiplatform drum synthesizer from the UWdeVST collection.
 
 `uwdevst_drum` is a synthetic drum machine for electronic kits, grooves, fills, impacts and rhythmic textures. It is not an acoustic multi-sampled drum library.
 
@@ -38,7 +38,8 @@ Free Windows x64 drum synthesizer from the UWdeVST collection.
 - 12 drum pads
 - 18 factory kits
 - Standalone application and VST3 plugin
-- Windows x64
+- Windows x64 and Linux x86_64 ready-to-use packages
+- macOS Universal builder for Apple Silicon and Intel
 - JUCE 8.0.4 / CMake project
 
 ## Download
@@ -62,10 +63,10 @@ Or use an existing JUCE 8.0.4 checkout:
 To build a Windows installer from a validated Release build:
 
 ```powershell
-.\_package_inno.ps1 -Configuration Release -AppVersion 1.0.2
+.\_package_inno.ps1 -Configuration Release -AppVersion 1.0.3
 ```
 
-Pushing a tag such as `v1.0.2` builds the Standalone and VST3 formats and publishes a Windows x64 package through GitHub Releases.
+Pushing a tag such as `v1.0.3` builds the Standalone and VST3 formats and publishes Windows x64 and Linux x86_64 packages plus a self-contained macOS Universal builder through GitHub Releases.
 
 The public source tree contains only the product targets needed for the Standalone and VST3 versions. Internal renderers, QA reports and production-test targets are intentionally excluded.
 

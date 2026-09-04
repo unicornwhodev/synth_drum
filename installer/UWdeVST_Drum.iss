@@ -1,6 +1,6 @@
 #define AppName "uwdevst_drum"
 #ifndef AppVersion
-#define AppVersion "1.0.2"
+#define AppVersion "1.0.3"
 #endif
 #define AppPublisher "unicorn who dev / Charli Billabert"
 #define AppExeName "uwdevst_drum.exe"
