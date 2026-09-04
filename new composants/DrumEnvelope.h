@@ -11,11 +11,16 @@ public:
     DrumEnvelope();
 
     void updateFromADSR(float attack, float decay, float sustain, float release);
+    void setAccentColour(juce::Colour c)
+    {
+        if (c != accentColour) { accentColour = c; repaint(); }
+    }
     void paint(juce::Graphics&) override;
     void resized() override;
 
 private:
     float a = 0.18f, d = 0.28f, s = 0.48f, r = 0.22f;
+    juce::Colour accentColour = UITheme::accent();
 };
 
 // =============================================================================
@@ -90,7 +95,7 @@ inline void DrumEnvelope::paint(juce::Graphics& g)
     fillPath.lineTo(p4);
     fillPath.lineTo(p0);
 
-    g.setColour(UITheme::accentOrange().withAlpha(0.12f));
+    g.setColour(accentColour.withAlpha(0.12f));
     g.fillPath(fillPath);
 
     // Curve line
@@ -101,13 +106,13 @@ inline void DrumEnvelope::paint(juce::Graphics& g)
     curve.cubicTo(p2.translated((p3.x - p2.x) * 0.5f, 0.0f), p3.translated(0.0f, 0.0f), p3);
     curve.lineTo(p4);
 
-    g.setColour(UITheme::accentOrange().withAlpha(0.85f));
+    g.setColour(accentColour.withAlpha(0.85f));
     g.strokePath(curve, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
     // Control points
     auto drawPoint = [&](juce::Point<float> p, const juce::String& label)
     {
-        g.setColour(UITheme::accentOrange());
+        g.setColour(accentColour);
         g.fillEllipse(p.x - 3.0f, p.y - 3.0f, 6.0f, 6.0f);
         g.setColour(UITheme::textMain());
         g.setFont(UITheme::fontMicro());

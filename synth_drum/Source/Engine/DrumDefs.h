@@ -230,8 +230,8 @@ constexpr std::array<VoiceEnvelopeScale, 9> kVoiceEnvelopes = {{
     { 2.0f, 0.22f, 0.002f },  // Snare
     { 1.8f, 0.12f, 0.0f   },  // Clap
     { 1.7f, 0.18f, 0.0f   },  // Hat
-    { 2.0f, 0.02f, 0.0f   },  // PercWood
-    { 2.05f, 0.05f, 0.0f  },  // PercMetal
+    { 3.0f, 0.02f, 0.0f   },  // PercWood  (longer: ring tails must not be cut)
+    { 3.1f, 0.05f, 0.0f  },  // PercMetal (longer: ring tails must not be cut)
     { 2.2f, 0.08f, 0.004f },  // Tom
     { 2.4f, 0.22f, 0.0f   },  // Crash
     { 2.0f, 0.10f, 0.0f   },  // Fx

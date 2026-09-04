@@ -10,11 +10,22 @@ class DrumKnob : public juce::Component
 public:
     DrumKnob(juce::String labelText,
              double min = 0.0, double max = 1.0, double value = 0.5,
-             juce::Colour accentCol = UITheme::accentOrange());
+             juce::Colour accentCol = UITheme::accent(), const char* unit = nullptr);
 
     juce::Slider& getSlider() noexcept { return slider; }
     void setLabelText(const juce::String& t);
-    void setAccentColour(juce::Colour c) { accentColour = c; lnf.accentCol = c; repaint(); }
+    void setUnit(juce::String u) { lnf.unit = std::move(u); repaint(); }
+    void setAccentColour(juce::Colour c)
+    {
+        if (c != accentColour) { accentColour = c; lnf.accentCol = c; repaint(); }
+    }
+    void setEnabled(bool shouldBeEnabled)
+    {
+        juce::Component::setEnabled(shouldBeEnabled);
+        slider.setEnabled(shouldBeEnabled);
+        setAlpha(shouldBeEnabled ? 1.0f : 0.40f);
+        repaint();
+    }
     void resized() override;
 
 private:
@@ -30,9 +41,10 @@ private:
                               juce::Slider&) override;
 
         juce::Colour accentCol;
+        juce::String unit;
 
     private:
-        static juce::String fmtValue(const juce::Slider&);
+        juce::String fmtValue(const juce::Slider&) const;
     };
 
     LookAndFeel lnf;
@@ -45,9 +57,11 @@ private:
 // Implementation
 // =============================================================================
 inline DrumKnob::DrumKnob(juce::String labelText, double min, double max,
-                           double value, juce::Colour ac)
+                           double value, juce::Colour ac, const char* unitText)
     : lnf(ac), accentColour(ac)
 {
+    if (unitText != nullptr)
+        lnf.unit = unitText;
     slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     slider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
     slider.setRange(min, max);
@@ -77,12 +91,25 @@ inline void DrumKnob::setLabelText(const juce::String& t)
     label.setText(t, juce::dontSendNotification);
 }
 
-inline juce::String DrumKnob::LookAndFeel::fmtValue(const juce::Slider& s)
+inline juce::String DrumKnob::LookAndFeel::fmtValue(const juce::Slider& s) const
 {
     const double v   = s.getValue();
     const double mn  = s.getMinimum();
     const double mx  = s.getMaximum();
     const double rng = mx - mn;
+
+    if (unit.isNotEmpty())
+    {
+        if (unit == "ms")  return juce::String(juce::roundToInt(v)) + " ms";
+        if (unit == "s")   return v < 1.0 ? juce::String(juce::roundToInt(v * 1000.0)) + " ms"
+                                          : juce::String(v, 2) + " s";
+        if (unit == "st")  return juce::String(v, 1) + " st";
+        if (unit == "Hz")  return v >= 1000.0 ? juce::String(v / 1000.0, 2) + " kHz"
+                                              : juce::String(juce::roundToInt(v)) + " Hz";
+        if (unit == "dB")  return juce::String(v, 1) + " dB";
+        if (unit == "x")   return juce::String(v, 2) + "x";
+        if (unit == "%")   return juce::String(juce::roundToInt(v * 100.0)) + "%";
+    }
 
     if (rng <= 2.01 && mn >= -1.01)          return juce::String(juce::roundToInt(v * 100)) + "%";
     if (mx >= 1000.0)

@@ -8,7 +8,7 @@
 class DrumToggle : public juce::TextButton
 {
 public:
-    explicit DrumToggle(juce::String text, juce::Colour accentCol = UITheme::accentOrange());
+    explicit DrumToggle(juce::String text, juce::Colour accentCol = UITheme::accent());
     ~DrumToggle() override = default;
 
     void paintButton(juce::Graphics& g, bool isMouseOverButton, bool isButtonDown) override;

@@ -48,7 +48,7 @@ private:
             arrow.startNewSubPath(cx - 3.5f, cy - 2.0f);
             arrow.lineTo(cx, cy + 2.5f);
             arrow.lineTo(cx + 3.5f, cy - 2.0f);
-            g.setColour(UITheme::accentOrange());
+            g.setColour(UITheme::accent());
             g.strokePath(arrow, juce::PathStrokeType(1.5f));
         }
 
@@ -83,7 +83,7 @@ private:
             auto row = area.toFloat().reduced(2.0f, 1.0f);
             if (isHighlighted)
             {
-                g.setColour(UITheme::accentOrange().withAlpha(0.15f));
+                g.setColour(UITheme::accent().withAlpha(0.15f));
                 g.fillRoundedRectangle(row, UITheme::cornerRadiusSmall());
             }
 

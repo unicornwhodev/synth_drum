@@ -51,25 +51,27 @@ struct PadSettings
 
 struct GlobalFxSettings
 {
-    float outputGainDb    = -6.5f;
-    float macroPunch      = 0.48f;
-    float macroWeight     = 0.52f;
-    float macroAir        = 0.46f;
-    float macroDirt       = 0.06f;
+    // Audit fix M4: defaults aligned with the APVTS parameter defaults in
+    // PluginProcessor.cpp so the init state matches a neutral preset.
+    float outputGainDb    = -3.0f;
+    float macroPunch      = 0.5f;
+    float macroWeight     = 0.5f;
+    float macroAir        = 0.5f;
+    float macroDirt       = 0.18f;
 
-    float compThreshold   = -11.0f;
-    float compRatio       = 1.8f;
-    float compAttack      = 20.0f;
-    float compRelease     = 160.0f;
+    float compThreshold   = -14.0f;
+    float compRatio       = 2.4f;
+    float compAttack      = 8.0f;
+    float compRelease     = 140.0f;
     float compMakeup      = 0.0f;
-    float compMix         = 0.32f;
+    float compMix         = 0.55f;
 
-    float satDrive        = 1.08f;
-    float satMix          = 0.04f;
+    float satDrive        = 1.45f;
+    float satMix          = 0.18f;
 
-    float transientAttack  = 0.04f;
-    float transientSustain = -0.02f;
-    float transientMix     = 0.12f;
+    float transientAttack  = 0.12f;
+    float transientSustain = -0.05f;
+    float transientMix     = 0.28f;
 
     // Reverb (DattorroPlateReverb)
     float reverbSize       = 0.35f;

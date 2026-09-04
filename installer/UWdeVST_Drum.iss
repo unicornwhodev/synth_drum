@@ -5,6 +5,9 @@
 #define AppPublisher "unicorn who dev / Charli Billabert"
 #define AppExeName "uwdevst_drum.exe"
 #define Vst3BundleName "uwdevst_drum.vst3"
+#ifndef StagingDir
+#define StagingDir "staging"
+#endif
 
 [Setup]
 AppId={{9A1C70C0-58EF-4D1A-9FE3-2D7C43D4D701}
@@ -40,8 +43,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Type: filesandordirs; Name: "{commoncf64}\VST3\{#Vst3BundleName}"
 
 [Files]
-Source: "staging\Standalone\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion; Components: standalone
-Source: "staging\VST3\{#Vst3BundleName}\*"; DestDir: "{commoncf64}\VST3\{#Vst3BundleName}"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: vst3
+Source: "{#StagingDir}\Standalone\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion; Components: standalone
+Source: "{#StagingDir}\VST3\{#Vst3BundleName}\*"; DestDir: "{commoncf64}\VST3\{#Vst3BundleName}"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: vst3
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Components: standalone

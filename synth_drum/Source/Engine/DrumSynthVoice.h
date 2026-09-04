@@ -30,6 +30,8 @@ public:
     }
 
     void setPitchBendFactor(float f) noexcept { pitchBendFactor = f; }
+    // Poly/channel aftertouch: live gain on the ringing voice (1.0 = neutral).
+    void setAftertouchGain(float g) noexcept { aftertouchGain = juce::jlimit(0.5f, 1.5f, g); }
     void setDeterministicSeed(juce::int64 seed) noexcept { random.setSeed(seed); }
     int getCachedPadIndexForTests() const noexcept { return padIndex; }
     DrumInstrumentAlgorithm getCachedAlgorithmForTests() const noexcept { return instrumentAlgorithm; }
@@ -56,7 +58,7 @@ protected:
     virtual float getNoiseScale() const = 0;
     virtual BodyResonatorConfig getBodyResonatorConfig() const { return {}; }
     virtual float getHoldSeconds() const { return 0.0f; }
-    virtual void renderModel(float& body, float& noise, float& click, float& transientMix) = 0;
+    virtual void renderModel(float& body, float& noise, float& click) = 0;
 
     PadSettings settings;
     double sampleRate = 44100.0;
@@ -78,6 +80,7 @@ protected:
     float clickPhase = 0.0f;
     float pitchCurrentHz = 120.0f;
     float pitchTargetHz = 120.0f;
+    float aftertouchGain = 1.0f;
     float pitchDecayCoeff = 1.0f;
     float pitchDecayCoeff2 = 1.0f;  // slow stage for 2-phase pitch
     float pitchMidHz = 120.0f;      // midpoint between start and target
@@ -152,7 +155,6 @@ public:
         bool  pitchContourOnH2;    // multiply h2 by pitch contour envelope
         float clickScale;
         float noiseModScale;
-        float transientBase;
     };
 
 protected:
@@ -160,7 +162,7 @@ protected:
     float getNoiseScale() const override;
     BodyResonatorConfig getBodyResonatorConfig() const override;
     float getHoldSeconds() const override;
-    void renderModel(float& body, float& noise, float& click, float& transientMix) override;
+    void renderModel(float& body, float& noise, float& click) override;
 
     virtual const TonalConfig& tonalConfig() const = 0;
 };
@@ -195,13 +197,12 @@ public:
         float bodyModulation;      // noiseEnvelope * this added to body
         float noiseModScale;
         float clickScale;
-        float transientBase;
     };
 
 protected:
     float getLifeScale() const override;
     float getNoiseScale() const override;
-    void renderModel(float& body, float& noise, float& click, float& transientMix) override;
+    void renderModel(float& body, float& noise, float& click) override;
 
     virtual const MetallicConfig& metallicConfig() const = 0;
 };
@@ -224,7 +225,7 @@ class ClapVoice final : public DrumVoice
 protected:
     float getLifeScale() const override;
     float getNoiseScale() const override;
-    void renderModel(float& body, float& noise, float& click, float& transientMix) override;
+    void renderModel(float& body, float& noise, float& click) override;
 };
 
 // =========================================================================
@@ -245,14 +246,13 @@ public:
         bool  hasMetalPartials;    // adds golden ratio + sqrt(2) partials
         float noiseKnockScale;
         float clickKnockScale;
-        float transientBase;
     };
 
 protected:
     float getLifeScale() const override;
     float getNoiseScale() const override;
     BodyResonatorConfig getBodyResonatorConfig() const override;
-    void renderModel(float& body, float& noise, float& click, float& transientMix) override;
+    void renderModel(float& body, float& noise, float& click) override;
 
     virtual const ModalConfig& modalConfig() const = 0;
 };
@@ -275,7 +275,7 @@ class FxVoice final : public DrumVoice
 protected:
     float getLifeScale() const override;
     float getNoiseScale() const override;
-    void renderModel(float& body, float& noise, float& click, float& transientMix) override;
+    void renderModel(float& body, float& noise, float& click) override;
 };
 
 // =========================================================================

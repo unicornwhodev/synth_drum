@@ -34,6 +34,7 @@ float clamp01f(const float value)
 void DrumVoice::start(const PadSettings& settingsToUse, const float noteVelocity, const double currentSampleRate)
 {
     settings = settingsToUse;
+    aftertouchGain = 1.0f;
     padIndex = resolvePadIndexForSettings(settings);
     instrumentAlgorithm = getPadAlgorithm(padIndex);
     renderMode = settings.renderMode;
@@ -41,6 +42,33 @@ void DrumVoice::start(const PadSettings& settingsToUse, const float noteVelocity
     settings.instrumentAlgorithm = instrumentAlgorithm;
     if (usesDedicatedV2())
         applyDedicatedStartShaping();
+
+    // Audit fix C3: open_amount must reshape decay/cutoff BEFORE any
+    // coefficient is computed below (maxAgeSamples, amplitude/noise decay,
+    // noise filters, SVF). Previously this block ran after all coefficients
+    // were derived from the unmodified values, making Open Amount inaudible.
+    if (settings.voiceModel == PadVoiceModel::Hat || settings.voiceModel == PadVoiceModel::Crash)
+    {
+        const float openAmount = juce::jlimit(0.0f, 1.0f, settings.openAmount);
+        const float metallicDensity = juce::jlimit(0.0f, 1.0f, settings.metallicDensity);
+        settings.decaySeconds = std::max(0.01f, settings.decaySeconds
+            * (settings.voiceModel == PadVoiceModel::Crash
+                ? (0.82f + openAmount * 1.10f)
+                : (0.45f + openAmount * 1.75f)));
+        settings.cutoffHz = juce::jlimit(120.0f, 18000.0f,
+            settings.cutoffHz * (0.88f + openAmount * 0.28f + metallicDensity * 0.10f));
+
+        const bool shortDecay = settings.decaySeconds < (settings.voiceModel == PadVoiceModel::Hat ? 0.05f : 0.22f);
+        const bool darkTone = settings.cutoffHz < (settings.voiceModel == PadVoiceModel::Hat ? 9000.0f : 7000.0f);
+        activeMetallicPartials = settings.voiceModel == PadVoiceModel::Hat ? 10 : 12;
+        if (shortDecay)
+            activeMetallicPartials -= 2;
+        if (darkTone)
+            activeMetallicPartials -= 2;
+        activeMetallicPartials += static_cast<int>(std::round((openAmount - 0.5f) * 2.0f
+                                                              + (metallicDensity - 0.5f) * 3.0f));
+        activeMetallicPartials = juce::jlimit(6, kMaxMetallicPartials, activeMetallicPartials);
+    }
 
     sampleRate = std::max(1.0, currentSampleRate);
     velocity = juce::jlimit(0.0f, 1.0f, noteVelocity);
@@ -180,7 +208,10 @@ void DrumVoice::start(const PadSettings& settingsToUse, const float noteVelocity
     holdSamples = static_cast<int>(getHoldSeconds() * static_cast<float>(sampleRate));
     const float sr = static_cast<float>(sampleRate);
     outputTrim = 0.90f;
-    activeMetallicPartials = kMaxMetallicPartials;
+    // Hat/Crash partial counts were already computed from open_amount at the
+    // top of start() (audit fix C3) — only reset the default for other models.
+    if (settings.voiceModel != PadVoiceModel::Hat && settings.voiceModel != PadVoiceModel::Crash)
+        activeMetallicPartials = kMaxMetallicPartials;
     stereoSideAmount = 0.0f;
     stereoPhase = random.nextFloat();
     stereoPhaseInc = 0.0f;
@@ -215,29 +246,6 @@ void DrumVoice::start(const PadSettings& settingsToUse, const float noteVelocity
         outputTrim = 0.90f;  // was 0.78f: +12% to normalize
         stereoSideAmount = 0.09f;
         stereoPhaseInc = (16.0f + random.nextFloat() * 22.0f) / sr;
-    }
-
-    if (settings.voiceModel == PadVoiceModel::Hat || settings.voiceModel == PadVoiceModel::Crash)
-    {
-        const float openAmount = juce::jlimit(0.0f, 1.0f, settings.openAmount);
-        const float metallicDensity = juce::jlimit(0.0f, 1.0f, settings.metallicDensity);
-        settings.decaySeconds = std::max(0.01f, settings.decaySeconds
-            * (settings.voiceModel == PadVoiceModel::Crash
-                ? (0.82f + openAmount * 1.10f)
-                : (0.45f + openAmount * 1.75f)));
-        settings.cutoffHz = juce::jlimit(120.0f, 18000.0f,
-            settings.cutoffHz * (0.88f + openAmount * 0.28f + metallicDensity * 0.10f));
-
-        const bool shortDecay = settings.decaySeconds < (settings.voiceModel == PadVoiceModel::Hat ? 0.05f : 0.22f);
-        const bool darkTone = settings.cutoffHz < (settings.voiceModel == PadVoiceModel::Hat ? 9000.0f : 7000.0f);
-        activeMetallicPartials = settings.voiceModel == PadVoiceModel::Hat ? 10 : 12;
-        if (shortDecay)
-            activeMetallicPartials -= 2;
-        if (darkTone)
-            activeMetallicPartials -= 2;
-        activeMetallicPartials += static_cast<int>(std::round((openAmount - 0.5f) * 2.0f
-                                                              + (metallicDensity - 0.5f) * 3.0f));
-        activeMetallicPartials = juce::jlimit(6, kMaxMetallicPartials, activeMetallicPartials);
     }
 
     dcBlockX1 = 0.0f;
@@ -322,8 +330,7 @@ void DrumVoice::render(juce::AudioBuffer<float>& buffer, const int startSample, 
         }
 
         float body = 0.0f;
-        float transientMix = 0.0f;
-        renderModel(body, noise, click, transientMix);
+        renderModel(body, noise, click);
 
         if (bodyFeedback > 0.001f && bodyDelay > 1.0f)
         {
@@ -358,7 +365,7 @@ void DrumVoice::render(juce::AudioBuffer<float>& buffer, const int startSample, 
         dcBlockY1 = dcBlockOut;
         sample = dcBlockOut;
 
-        sample *= outputTrim * velocity * settings.level;
+        sample *= outputTrim * velocity * settings.level * aftertouchGain;
 
         float stereoSide = 0.0f;
         if (right != nullptr && stereoSideAmount > 0.0001f)
@@ -588,7 +595,7 @@ DrumVoice::BodyResonatorConfig TonalDrumVoice::getBodyResonatorConfig() const
     return { br.feedback, br.damping, br.frequencyRatio };
 }
 
-void TonalDrumVoice::renderModel(float& body, float& noise, float& click, float& transientMix)
+void TonalDrumVoice::renderModel(float& body, float& noise, float& click)
 {
     const auto& cfg = tonalConfig();
 
@@ -624,21 +631,18 @@ void TonalDrumVoice::renderModel(float& body, float& noise, float& click, float&
                 signal += mds::fastSin(phase * 1.42f) * 0.028f * pitchContour * harmonicNyquistScale(1.42f);
                 noise *= 0.72f;
                 click *= 0.84f;
-                transientMix += 0.015f;
                 break;
 
             case DrumInstrumentAlgorithm::KickB:
                 signal += mds::fastSin(phase * 2.60f) * 0.040f * pitchContour * harmonicNyquistScale(2.60f);
                 signal += mds::fastSin(phase * 3.35f) * 0.018f * pitchContour * harmonicNyquistScale(3.35f);
                 click *= 1.18f;
-                transientMix += 0.045f;
                 break;
 
             case DrumInstrumentAlgorithm::Snare:
                 signal += noiseLowPassState * 0.045f * noiseEnvelope;
                 noise *= 1.14f;
                 click *= 1.10f;
-                transientMix += 0.035f;
                 break;
 
             case DrumInstrumentAlgorithm::TomLow:
@@ -652,7 +656,6 @@ void TonalDrumVoice::renderModel(float& body, float& noise, float& click, float&
                 signal += mds::fastSin(phase * 2.25f) * 0.030f * harmonicNyquistScale(2.25f);
                 signal += noiseLowPassState * 0.020f * noiseEnvelope;
                 click *= 1.12f;
-                transientMix += 0.020f;
                 break;
 
             default:
@@ -663,27 +666,26 @@ void TonalDrumVoice::renderModel(float& body, float& noise, float& click, float&
     body = signal * amplitude;
     noise *= cfg.noiseModScale;
     click *= cfg.clickScale;
-    transientMix = cfg.transientBase;
 }
 
 // -- Tonal leaf configs --
 
 const TonalDrumVoice::TonalConfig& KickVoice::tonalConfig() const
 {
-    //                                idx  sine   sub    h2     h3     golden pCont  click  noise  trans
-    static constexpr TonalConfig cfg = { 0, 0.62f, 0.34f, 0.09f, 0.02f,  0.0f,  true,  0.70f, 0.03f, 0.12f };
+    //                                idx  sine   sub    h2     h3     golden pCont  click  noise
+    static constexpr TonalConfig cfg = { 0, 0.62f, 0.34f, 0.09f, 0.02f,  0.0f,  true,  0.70f, 0.03f };
     return cfg;
 }
 
 const TonalDrumVoice::TonalConfig& SnareVoice::tonalConfig() const
 {
-    static constexpr TonalConfig cfg = { 1, 0.14f, 0.0f, 0.10f, 0.03f, 0.0f, false, 0.56f, 1.18f, 0.18f };
+    static constexpr TonalConfig cfg = { 1, 0.14f, 0.0f, 0.10f, 0.03f, 0.0f, false, 0.56f, 1.18f };
     return cfg;
 }
 
 const TonalDrumVoice::TonalConfig& TomVoice::tonalConfig() const
 {
-    static constexpr TonalConfig cfg = { 6, 0.78f, 0.06f, 0.08f, 0.03f, 0.09f, false, 0.72f, 0.10f, 0.10f };
+    static constexpr TonalConfig cfg = { 6, 0.78f, 0.06f, 0.08f, 0.03f, 0.09f, false, 0.72f, 0.10f };
     return cfg;
 }
 
@@ -700,7 +702,7 @@ float MetallicDrumVoice::getNoiseScale() const
     return kVoiceEnvelopes[static_cast<std::size_t>(metallicConfig().modelIndex)].noiseScale;
 }
 
-void MetallicDrumVoice::renderModel(float& body, float& noise, float& click, float& transientMix)
+void MetallicDrumVoice::renderModel(float& body, float& noise, float& click)
 {
     const auto& cfg = metallicConfig();
     const auto& partials = cfg.useCrashPartials ? kCrashPartials : kHatPartials;
@@ -722,7 +724,6 @@ void MetallicDrumVoice::renderModel(float& body, float& noise, float& click, flo
          * (0.82f + metallicDensity * 0.34f);
     noise *= cfg.noiseModScale * (1.12f - metallicDensity * 0.34f);
     click *= cfg.clickScale * (0.86f + metallicDensity * 0.20f);
-    transientMix = cfg.transientBase + metallicDensity * 0.03f;
 
     if (usesDedicatedV2())
     {
@@ -732,41 +733,44 @@ void MetallicDrumVoice::renderModel(float& body, float& noise, float& click, flo
                 body *= 0.72f;
                 noise *= 0.78f;
                 click *= 1.18f;
-                transientMix += 0.050f;
                 break;
 
             case DrumInstrumentAlgorithm::HatOpen:
                 body *= 1.10f;
                 noise *= 1.22f;
                 click *= 0.82f;
-                transientMix += 0.015f;
                 break;
 
             case DrumInstrumentAlgorithm::Crash:
                 body *= 1.18f;
                 noise *= 1.10f;
                 click *= 0.70f;
-                transientMix += 0.020f;
                 break;
 
             default:
                 break;
         }
     }
+
+    // Audit fixes H2/H3: the metallic body must follow the main amplitude
+    // envelope (attack + decay). Previously bodyBase kept the partials at a
+    // constant level until the voice was killed, so Attack was inaudible and
+    // hats/crash ended with a hard cut instead of a natural decay.
+    body *= amplitude;
 }
 
 // -- Metallic leaf configs --
 
 const MetallicDrumVoice::MetallicConfig& HatVoice::metallicConfig() const
 {
-    //                                   idx crash  base   mod    noise  click  trans
-    static constexpr MetallicConfig cfg = { 3, false, 0.16f, 0.18f, 0.72f, 0.08f, 0.10f };
+    //                                   idx crash  base   mod    noise  click
+    static constexpr MetallicConfig cfg = { 3, false, 0.16f, 0.18f, 0.72f, 0.08f };
     return cfg;
 }
 
 const MetallicDrumVoice::MetallicConfig& CrashVoice::metallicConfig() const
 {
-    static constexpr MetallicConfig cfg = { 7, true, 0.18f, 0.22f, 0.52f, 0.025f, 0.05f };
+    static constexpr MetallicConfig cfg = { 7, true, 0.18f, 0.22f, 0.52f, 0.025f };
     return cfg;
 }
 
@@ -783,7 +787,7 @@ float ClapVoice::getNoiseScale() const
     return kVoiceEnvelopes[static_cast<std::size_t>(PadVoiceModel::Clap)].noiseScale;
 }
 
-void ClapVoice::renderModel(float& body, float& noise, float& click, float& transientMix)
+void ClapVoice::renderModel(float& body, float& noise, float& click)
 {
     const auto burstTime = static_cast<float>(ageSamples) / static_cast<float>(sampleRate);
     const float clapSpread = juce::jlimit(0.0f, 1.0f, settings.clapSpread);
@@ -805,17 +809,18 @@ void ClapVoice::renderModel(float& body, float& noise, float& click, float& tran
     noise = (noise * (k::kClapNoiseDirectScale * (0.78f + clapDensity * 0.34f))
            + midNoise * k::kClapNoiseMidScale) * burstEnv;
     click *= 0.04f + clapDensity * 0.05f;
-    transientMix = 0.03f + clapDensity * 0.04f;
 
     if (usesDedicatedV2())
     {
         const float spreadBody = 0.035f + clapSpread * 0.035f;
-        const float lateBias = burstTime > 0.018f ? 1.0f : 0.72f;
         body += midNoise * burstEnv * spreadBody;
         noise *= 1.08f + clapDensity * 0.06f;
         click *= 0.88f + clapSpread * 0.10f;
-        transientMix += 0.025f * lateBias;
     }
+
+    // Audit fix H2: apply the main amplitude envelope so Attack shapes the
+    // clap burst like any other pad (previously ignored on this model).
+    body *= amplitude;
 }
 
 // =========================================================================
@@ -837,7 +842,7 @@ DrumVoice::BodyResonatorConfig ModalDrumVoice::getBodyResonatorConfig() const
     return { br.feedback, br.damping, br.frequencyRatio };
 }
 
-void ModalDrumVoice::renderModel(float& body, float& noise, float& click, float& transientMix)
+void ModalDrumVoice::renderModel(float& body, float& noise, float& click)
 {
     const auto& cfg = modalConfig();
     const auto hitTime = static_cast<float>(ageSamples) / static_cast<float>(sampleRate);
@@ -862,7 +867,6 @@ void ModalDrumVoice::renderModel(float& body, float& noise, float& click, float&
     body = signal * tailEnv * (0.80f + bodyTone * 0.42f) + impact;
     noise = noise * cfg.noiseKnockScale * knockEnv * (1.05f - bodyTone * 0.40f);
     click *= cfg.clickKnockScale * knockEnv * (0.88f + bodyTone * 0.22f);
-    transientMix = cfg.transientBase + modalRing * 0.03f;
 
     if (usesDedicatedV2())
     {
@@ -872,7 +876,6 @@ void ModalDrumVoice::renderModel(float& body, float& noise, float& click, float&
                 body += mds::fastSin(phase * 0.58f) * tailEnv * 0.040f;
                 noise *= 0.82f;
                 click *= 1.08f;
-                transientMix += 0.015f;
                 break;
 
             case DrumInstrumentAlgorithm::Perc2Metal:
@@ -880,27 +883,33 @@ void ModalDrumVoice::renderModel(float& body, float& noise, float& click, float&
                 body += mds::fastSin(phase * 4.24f) * tailEnv * 0.018f * harmonicNyquistScale(4.24f);
                 noise *= 1.08f;
                 click *= 0.92f;
-                transientMix += 0.025f;
                 break;
 
             default:
                 break;
         }
     }
+
+    // Audit fix H2: Attack must shape perc pads too. Only the attack ramp of
+    // the main envelope is applied: multiplying by the full decaying amplitude
+    // compounded with tailEnv and made the modal tail decay roughly twice as
+    // fast as the DECAY knob asked. tailEnv now carries the decay authority
+    // (and RING can extend past it); the voice still dies via amplitude/maxAge.
+    body *= (ageSamples < attackSamples ? amplitude : 1.0f);
 }
 
 // -- Modal leaf configs --
 
 const ModalDrumVoice::ModalConfig& PercWoodVoice::modalConfig() const
 {
-    //                                idx  sine   h2     knockM minK   impact metal  noiseK clickK trans
-    static constexpr ModalConfig cfg = { 4, 0.28f, 0.055f, 6.0f, 80.0f, 0.58f, false, 0.22f, 0.07f, 0.03f };
+    //                                idx  sine   h2     knockM minK   impact metal  noiseK clickK
+    static constexpr ModalConfig cfg = { 4, 0.28f, 0.055f, 6.0f, 80.0f, 0.58f, false, 0.22f, 0.07f };
     return cfg;
 }
 
 const ModalDrumVoice::ModalConfig& PercMetalVoice::modalConfig() const
 {
-    static constexpr ModalConfig cfg = { 5, 0.28f, 0.040f, 6.0f, 100.0f, 0.56f, true, 0.20f, 0.06f, 0.03f };
+    static constexpr ModalConfig cfg = { 5, 0.28f, 0.040f, 6.0f, 100.0f, 0.56f, true, 0.20f, 0.06f };
     return cfg;
 }
 
@@ -917,7 +926,7 @@ float FxVoice::getNoiseScale() const
     return kVoiceEnvelopes[static_cast<std::size_t>(PadVoiceModel::Fx)].noiseScale;
 }
 
-void FxVoice::renderModel(float& body, float& noise, float& click, float& transientMix)
+void FxVoice::renderModel(float& body, float& noise, float& click)
 {
     const float fmIndex = juce::jlimit(0.0f, 1.0f, settings.fmIndex);
     const float fmSweep = juce::jlimit(0.0f, 1.0f, settings.fmSweep);
@@ -935,7 +944,6 @@ void FxVoice::renderModel(float& body, float& noise, float& click, float& transi
     body = sweep * amplitude * (k::kFmOutputScale * (0.72f + fmIndex * 0.42f));
     noise *= 0.03f + (1.0f - fmSweep) * 0.05f;
     click *= 0.16f + fmSweep * 0.24f;
-    transientMix = 0.06f + fmIndex * 0.08f;
 
     if (usesDedicatedV2())
     {
@@ -945,7 +953,6 @@ void FxVoice::renderModel(float& body, float& noise, float& click, float& transi
         body += sideband * amplitude * sideScale * (0.035f + fmIndex * 0.060f);
         noise *= 1.18f;
         click *= 1.12f;
-        transientMix += 0.035f;
     }
 }
 

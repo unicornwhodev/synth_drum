@@ -72,7 +72,7 @@ The public source tree contains only the product targets needed for the Standalo
 ## Repository layout
 
 - `synth_drum/` — plugin and synthesis engine
-- `Shared/` — shared runtime code required by this repository
+- `Shared/` — only `Shared/PitchBendState.h` is required by this repository
 - `assets versions png/` — UI assets required by the build
 - `new composants/` — shared UI components required by the build
 - `installer/` — Windows installer definition/output staging

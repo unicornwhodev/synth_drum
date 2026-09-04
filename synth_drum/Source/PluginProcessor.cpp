@@ -465,6 +465,17 @@ void sanitizeParameterState(juce::AudioProcessorValueTreeState& parameters)
     sanitizeById(kFxLimiterEn);
     sanitizeById(kAuxPostFx);
     sanitizeById(kQualityMode);
+    // Audit fix M2: these globals were missing from sanitisation.
+    sanitizeById(kFxReverbEn);
+    sanitizeById(kFxTransientEn);
+    sanitizeById(kFxSaturatorEn);
+    sanitizeById(kFxCompEn);
+    sanitizeById(kVelocityCurve);
+    sanitizeById(kLfoRate);
+    sanitizeById(kLfoDepth);
+    sanitizeById(kLfoWave);
+    sanitizeById(kHumanizeTiming);
+    sanitizeById(kHumanizeLevel);
 
     for (int pad = 0; pad < mds::kNumPads; ++pad)
     {
@@ -492,12 +503,17 @@ void sanitizeParameterState(juce::AudioProcessorValueTreeState& parameters)
         sanitizeById(DrumSynthAudioProcessor::makePadParamId(pad, kRevSendSuffix));
         sanitizeById(DrumSynthAudioProcessor::makePadParamId(pad, kDlySendSuffix));
         sanitizeById(DrumSynthAudioProcessor::makePadParamId(pad, kPadOutputSuffix));
+        sanitizeById(DrumSynthAudioProcessor::makePadParamId(pad, "mute"));
+        sanitizeById(DrumSynthAudioProcessor::makePadParamId(pad, "solo"));
     }
 }
 
 void applyPresetMigrationDefaults(juce::AudioProcessorValueTreeState& parameters, const int savedVersion)
 {
-    if (savedVersion >= 5)
+    // Audit fix M1: the early return must match the newest migration block
+    // below (v5 -> v6). Returning at >= 5 made the savedVersion < 6 block
+    // unreachable, so v5 states never received the new per-pad defaults.
+    if (savedVersion >= 6)
         return;
 
     auto setDefaultIfMissing = [&](const juce::String& id)
@@ -569,10 +585,10 @@ void restorePresetMetadata(const juce::ValueTree& restoredState,
     currentPresetIndex = static_cast<int>(restoredState.getProperty(kPresetIndexProperty, -1));
     if (factoryPresets.empty())
         currentPresetIndex = -1;
-    else
+    else if (currentPresetIndex >= 0)
         currentPresetIndex = juce::jlimit(0, static_cast<int>(factoryPresets.size()) - 1, currentPresetIndex);
 
-    currentUserPresetFile = {};
+    currentUserPresetFile = juce::File{};
     auto userPath = restoredState.getProperty(kUserPresetFileProperty, "").toString();
     if (userPath.isNotEmpty())
     {
@@ -1043,7 +1059,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout DrumSynthAudioProcessor::cre
         layout.add(std::make_unique<juce::AudioParameterFloat>(
             makePadParamId(pad, "decay"),
             prefix + "Decay",
-            juce::NormalisableRange<float>(0.03f, 2.5f, 0.0001f),
+            juce::NormalisableRange<float>(0.004f, 2.5f, 0.0001f),
             defaults.decaySeconds));
 
         layout.add(std::make_unique<juce::AudioParameterFloat>(
@@ -1061,7 +1077,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout DrumSynthAudioProcessor::cre
         layout.add(std::make_unique<juce::AudioParameterFloat>(
             makePadParamId(pad, "pitch_decay"),
             prefix + "Pitch Decay",
-            juce::NormalisableRange<float>(0.005f, 1.2f, 0.0001f),
+            juce::NormalisableRange<float>(0.002f, 1.2f, 0.0001f),
             defaults.pitchDecaySeconds));
 
         layout.add(std::make_unique<juce::AudioParameterFloat>(
@@ -1093,6 +1109,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout DrumSynthAudioProcessor::cre
             prefix + "Pan",
             juce::NormalisableRange<float>(-1.0f, 1.0f, 0.001f),
             defaults.pan));
+
+        // Live performance state: not touched by factory kit presets, but
+        // stored in sessions/user presets and MIDI-learnable like any param.
+        layout.add(std::make_unique<juce::AudioParameterBool>(
+            makePadParamId(pad, "mute"), prefix + "Mute", false));
+        layout.add(std::make_unique<juce::AudioParameterBool>(
+            makePadParamId(pad, "solo"), prefix + "Solo", false));
 
         layout.add(std::make_unique<juce::AudioParameterFloat>(
             makePadParamId(pad, kClapSpreadSuffix),
@@ -1161,7 +1184,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout DrumSynthAudioProcessor::cre
             juce::NormalisableRange<float>(0.0f, 1.0f, 0.0001f),
             defaults.delaySend));
 
-        const auto defaultOutputChoice = juce::jlimit(0, kNumAuxOutputs, pad + 1);
+        // Audit fix M3: default routing is the master bus (choice 0), like
+        // the factory presets — not the per-pad aux output.
+        const auto defaultOutputChoice = 0;
         layout.add(std::make_unique<juce::AudioParameterChoice>(
             makePadParamId(pad, kPadOutputSuffix),
             prefix + "Output",
@@ -1175,6 +1200,52 @@ juce::AudioProcessorValueTreeState::ParameterLayout DrumSynthAudioProcessor::cre
 juce::String DrumSynthAudioProcessor::makePadParamId(const int padIndex, const juce::String& suffix)
 {
     return "pad_" + juce::String(padIndex) + "_" + suffix;
+}
+
+void DrumSynthAudioProcessor::prepareFxBusState(FxBusState& chain, const juce::dsp::ProcessSpec& spec)
+{
+    constexpr double kGainMixSmoothingSeconds = 0.02;
+
+    chain.compressor.reset();
+    chain.compressor.prepare(spec);
+    chain.compressor.setThreshold(getParamValue(kCompThreshold));
+    chain.compressor.setRatio(getParamValue(kCompRatio));
+    chain.compressor.setAttack(getParamValue(kCompAttack));
+    chain.compressor.setRelease(getParamValue(kCompRelease));
+    chain.compCache = CompressorCache{};
+
+    chain.transientAttackSmoother.reset(preparedSampleRate, kGainMixSmoothingSeconds);
+    chain.transientSustainSmoother.reset(preparedSampleRate, kGainMixSmoothingSeconds);
+    chain.transientMixSmoother.reset(preparedSampleRate, kGainMixSmoothingSeconds);
+    chain.transientAttackSmoother.setCurrentAndTargetValue(getParamValue(kTransientAttack));
+    chain.transientSustainSmoother.setCurrentAndTargetValue(getParamValue(kTransientSustain));
+    chain.transientMixSmoother.setCurrentAndTargetValue(getParamValue(kTransientMix));
+    chain.satDriveSmoother.reset(preparedSampleRate, kGainMixSmoothingSeconds);
+    chain.satMixSmoother.reset(preparedSampleRate, kGainMixSmoothingSeconds);
+    chain.satDriveSmoother.setCurrentAndTargetValue(getParamValue(kSatDrive));
+    chain.satMixSmoother.setCurrentAndTargetValue(getParamValue(kSatMix));
+
+    chain.reverb.prepare(preparedSampleRate, static_cast<int>(spec.maximumBlockSize));
+    chain.eq.prepare(preparedSampleRate);
+    chain.chorus.prepare(preparedSampleRate, static_cast<int>(spec.maximumBlockSize));
+    chain.delay.prepare(preparedSampleRate, static_cast<int>(spec.maximumBlockSize));
+    chain.limiter.prepare(preparedSampleRate);
+    chain.satOversamplingMono.initProcessing(static_cast<std::size_t>(spec.maximumBlockSize));
+    chain.satOversamplingStereo.initProcessing(static_cast<std::size_t>(spec.maximumBlockSize));
+    chain.satOversamplingMono.reset();
+    chain.satOversamplingStereo.reset();
+    {
+        juce::dsp::ProcessSpec delaySpec { preparedSampleRate, spec.maximumBlockSize, 2 };
+        chain.satDryDelay.prepare(delaySpec);
+        chain.satDryDelay.reset();
+    }
+    chain.satDryDelayPrimed = false;
+    chain.dryBuffer.setSize(juce::jmax(2, static_cast<int>(spec.numChannels)),
+                            static_cast<int>(spec.maximumBlockSize), false, true, true);
+    chain.transientFastEnv = { 0.0f, 0.0f };
+    chain.transientSlowEnv = { 0.0f, 0.0f };
+    chain.lfoPhase = 0.0f;
+    chain.tailBlocksLeft = 0;
 }
 
 void DrumSynthAudioProcessor::prepareToPlay(const double sampleRate, const int samplesPerBlock)
@@ -1205,26 +1276,13 @@ void DrumSynthAudioProcessor::prepareToPlay(const double sampleRate, const int s
         static_cast<juce::uint32>(juce::jmax(1, getMainBusNumOutputChannels()))
     };
 
-    compressor.reset();
-    compressor.prepare(spec);
-    compressor.setThreshold(getParamValue(kCompThreshold));
-    compressor.setRatio(getParamValue(kCompRatio));
-    compressor.setAttack(getParamValue(kCompAttack));
-    compressor.setRelease(getParamValue(kCompRelease));
+    prepareFxBusState(masterFx, spec);
+    masterFx.isMaster = true;
+    for (auto& fxChain : auxFx)
+        prepareFxBusState(fxChain, spec);
 
-    compCache = CompressorCache{};
     outputGainSmoother.reset(preparedSampleRate, kGainMixSmoothingSeconds);
     outputGainSmoother.setCurrentAndTargetValue(juce::Decibels::decibelsToGain(getParamValue(kOutputGain)));
-    transientAttackSmoother.reset(preparedSampleRate, kGainMixSmoothingSeconds);
-    transientSustainSmoother.reset(preparedSampleRate, kGainMixSmoothingSeconds);
-    transientMixSmoother.reset(preparedSampleRate, kGainMixSmoothingSeconds);
-    transientAttackSmoother.setCurrentAndTargetValue(getParamValue(kTransientAttack));
-    transientSustainSmoother.setCurrentAndTargetValue(getParamValue(kTransientSustain));
-    transientMixSmoother.setCurrentAndTargetValue(getParamValue(kTransientMix));
-    satDriveSmoother.reset(preparedSampleRate, kGainMixSmoothingSeconds);
-    satMixSmoother.reset(preparedSampleRate, kGainMixSmoothingSeconds);
-    satDriveSmoother.setCurrentAndTargetValue(getParamValue(kSatDrive));
-    satMixSmoother.setCurrentAndTargetValue(getParamValue(kSatMix));
     macroPunchSmoother.reset(preparedSampleRate, kMacroSmoothingSeconds);
     macroWeightSmoother.reset(preparedSampleRate, kMacroSmoothingSeconds);
     macroAirSmoother.reset(preparedSampleRate, kMacroSmoothingSeconds);
@@ -1238,16 +1296,6 @@ void DrumSynthAudioProcessor::prepareToPlay(const double sampleRate, const int s
     macroAirSmoother.setCurrentAndTargetValue(macroAirValue);
     macroDirtSmoother.setCurrentAndTargetValue(macroDirtValue);
 
-    dattorroReverb.prepare(preparedSampleRate, scratchSamples);
-    fxEq.prepare(preparedSampleRate);
-    fxChorus.prepare(preparedSampleRate, scratchSamples);
-    fxDelay.prepare(preparedSampleRate, scratchSamples);
-    fxLimiter.prepare(preparedSampleRate);
-    satOversamplingMono.initProcessing(static_cast<std::size_t>(scratchSamples));
-    satOversamplingStereo.initProcessing(static_cast<std::size_t>(scratchSamples));
-    satOversamplingMono.reset();
-    satOversamplingStereo.reset();
-
     // Audit Phase 5 D3: dedicated send instances + scratch buffers.
     sendReverb.prepare(preparedSampleRate, scratchSamples);
     sendDelay.prepare(preparedSampleRate, scratchSamples);
@@ -1257,12 +1305,8 @@ void DrumSynthAudioProcessor::prepareToPlay(const double sampleRate, const int s
     voiceScratchBuffer.setSize(scratchCh, static_cast<int>(spec.maximumBlockSize), false, true, true);
     currentPadReverbSend.fill(0.0f);
     currentPadDelaySend.fill(0.0f);
+    padAftertouch.fill(0.0f);
 
-    fxDryBuffer.setSize(static_cast<int>(spec.numChannels), static_cast<int>(spec.maximumBlockSize), false, true, true);
-    transientFastEnv = { 0.0f, 0.0f };
-    transientSlowEnv = { 0.0f, 0.0f };
-    saturatorPrevSample = { 0.0f, 0.0f };
-    lfoPhase = 0.0f;
     resetRuntimeTelemetry();
 }
 
@@ -1276,13 +1320,21 @@ void DrumSynthAudioProcessor::releaseResources()
         av = {};
     }
     activeVoiceCount = 0;
-    fxDryBuffer.setSize(0, 0);
     reverbSendBuffer.setSize(0, 0);
     delaySendBuffer.setSize(0, 0);
     voiceScratchBuffer.setSize(0, 0);
-    satOversamplingMono.reset();
-    satOversamplingStereo.reset();
-    saturatorPrevSample = { 0.0f, 0.0f };
+    auto resetFxChain = [](FxBusState& chain)
+    {
+        chain.satOversamplingMono.reset();
+        chain.satOversamplingStereo.reset();
+        chain.satDryDelay.reset();
+        chain.satDryDelayPrimed = false;
+        chain.tailBlocksLeft = 0;
+        chain.dryBuffer.setSize(0, 0);
+    };
+    resetFxChain(masterFx);
+    for (auto& fxChain : auxFx)
+        resetFxChain(fxChain);
     resetRuntimeTelemetry();
 }
 
@@ -1339,7 +1391,13 @@ void DrumSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juc
     {
         currentPadReverbSend[(std::size_t) p] = clamp01(getParamValue(makePadParamId(p, kRevSendSuffix)));
         currentPadDelaySend [(std::size_t) p] = clamp01(getParamValue(makePadParamId(p, kDlySendSuffix)));
+        currentPadMute[(std::size_t) p] = getParamValue(makePadParamId(p, "mute"));
+        currentPadSolo[(std::size_t) p] = getParamValue(makePadParamId(p, "solo"));
     }
+    anyPadSoloActive = false;
+    for (int p = 0; p < mds::kNumPads; ++p)
+        if (currentPadSolo[(std::size_t) p] >= 0.5f)
+            anyPadSoloActive = true;
     if (reverbSendBuffer.getNumChannels() > 0)
         reverbSendBuffer.clear(0, blockSamples);
     if (reverbSendBuffer.getNumChannels() > 1)
@@ -1408,6 +1466,20 @@ void DrumSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juc
                     enqueuePendingTrigger(padIndex, velocity, sampleOffset - blockSamples);
             }
         }
+        else if (msg.isAftertouch())
+        {
+            // Poly aftertouch: pressure follows the pad mapped to the note.
+            const auto padIndex = mapMidiNoteToPad(msg.getNoteNumber());
+            if (padIndex >= 0)
+                padAftertouch[static_cast<std::size_t>(padIndex)] =
+                    juce::jlimit(0.0f, 1.0f, static_cast<float>(msg.getAfterTouchValue()) / 127.0f);
+        }
+        else if (msg.isChannelPressure())
+        {
+            // Channel pressure: one global pressure applied to every pad.
+            const auto pressure = juce::jlimit(0.0f, 1.0f, static_cast<float>(msg.getChannelPressureValue()) / 127.0f);
+            padAftertouch.fill(pressure);
+        }
         else if (msg.isPitchWheel())
         {
             pitchBend.setPitchWheel(msg.getPitchWheelValue());
@@ -1426,7 +1498,7 @@ void DrumSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juc
         for (int i = 0; i < scope.blockSize1; ++i)
         {
             const auto& trigger = triggerFifoBuffer[static_cast<std::size_t>(scope.startIndex1 + i)];
-            const auto velocity = humanizeVelocity(trigger.velocity);
+            const auto velocity = humanizeVelocity(applyVelocityCurve(trigger.velocity, velocityCurve));
             const auto sampleOffset = humanizeOffset(0);
             if (sampleOffset < blockSamples)
                 appendTriggerToBatch({ trigger.padIndex, velocity, sampleOffset });
@@ -1492,7 +1564,9 @@ void DrumSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juc
     {
         auto& av = activeVoices[static_cast<std::size_t>(i)];
         const bool voiceFinished = (av.voice == nullptr || !av.voice->isActive());
-        const bool fadeComplete  = (av.fadeOutSamples > 0 && av.fadeOutGain <= 0.001f);
+        // Audit fix C2: an engaged fade-out is complete once its sample
+        // countdown reaches 0 (gain is clamped at 0 by the render loop).
+        const bool fadeComplete  = (av.fadeOutActive && av.fadeOutSamples <= 0);
 
         if (voiceFinished || fadeComplete)
         {
@@ -1510,17 +1584,17 @@ void DrumSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juc
     auto mainBuffer = getBusBuffer(buffer, false, 0);
     if (mainBuffer.getNumChannels() > 0 && mainBuffer.getNumSamples() > 0)
     {
-        processGlobalTransient(mainBuffer);
-        processGlobalSaturator(mainBuffer);
-        processGlobalEQ(mainBuffer);
-        processGlobalCompressor(mainBuffer);
-        processGlobalChorus(mainBuffer);
-        processGlobalDelay(mainBuffer);
-        processGlobalReverb(mainBuffer);
+        processGlobalTransient(mainBuffer, masterFx);
+        processGlobalSaturator(mainBuffer, masterFx);
+        processGlobalEQ(mainBuffer, masterFx);
+        processGlobalCompressor(mainBuffer, masterFx);
+        processGlobalChorus(mainBuffer, masterFx);
+        processGlobalDelay(mainBuffer, masterFx);
+        processGlobalReverb(mainBuffer, masterFx);
         // Audit Phase 5 D3: mix the per-pad send returns into the master bus
         // before the output gain stage so they obey the master volume.
         processPadSends(mainBuffer);
-        processGlobalLfo(mainBuffer);
+        processGlobalLfo(mainBuffer, masterFx);
 
         const auto targetOutputGain = juce::Decibels::decibelsToGain(getParamValue(kOutputGain));
         const auto startGain = outputGainSmoother.getCurrentValue();
@@ -1528,27 +1602,44 @@ void DrumSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juc
         const auto endGain = outputGainSmoother.skip(mainBuffer.getNumSamples());
         for (int channel = 0; channel < mainBuffer.getNumChannels(); ++channel)
             mainBuffer.applyGainRamp(channel, 0, mainBuffer.getNumSamples(), startGain, endGain);
-        processGlobalLimiter(mainBuffer);
+        processGlobalLimiter(mainBuffer, masterFx);
         updateOutputMeters(mainBuffer, false);
     }
 
-    // Post-FX mode: route aux buses through the same FX chain
+    // Post-FX mode: route aux buses through the FX chain. Each aux bus owns a
+    // dedicated FxBusState: sharing the master instances made stateful FX
+    // (delay lines, reverb tanks, compressor envelopes, oversamplers) advance
+    // once per bus per block, which bled audio across buses (crosstalk).
     if (auxPostFx)
     {
+        const int tailBlocks = juce::jmax(1, static_cast<int>(
+            2.5 * preparedSampleRate / juce::jmax(1, blockSamples)));
         for (int busIndex = 1; busIndex < outputBusCount; ++busIndex)
         {
             auto auxBuffer = getBusBuffer(buffer, false, busIndex);
             if (auxBuffer.getNumChannels() > 0 && auxBuffer.getNumSamples() > 0)
             {
-                processGlobalTransient(auxBuffer);
-                processGlobalSaturator(auxBuffer);
-                processGlobalEQ(auxBuffer);
-                processGlobalCompressor(auxBuffer);
-                processGlobalChorus(auxBuffer);
-                processGlobalDelay(auxBuffer);
-                processGlobalReverb(auxBuffer);
-                processGlobalLfo(auxBuffer);
-                processGlobalLimiter(auxBuffer);
+                auto& chain = auxFx[static_cast<std::size_t>(busIndex - 1)];
+
+                // Silent-bus skip: once the input and the FX tails (~2.5 s,
+                // longer than any delay/reverb tail) are gone, the chain is
+                // bypassed so unused aux buses cost no CPU.
+                if (auxBuffer.getMagnitude(0, auxBuffer.getNumSamples()) > 1.0e-5f)
+                    chain.tailBlocksLeft = tailBlocks;
+
+                if (chain.tailBlocksLeft > 0)
+                {
+                    --chain.tailBlocksLeft;
+                    processGlobalTransient(auxBuffer, chain);
+                    processGlobalSaturator(auxBuffer, chain);
+                    processGlobalEQ(auxBuffer, chain);
+                    processGlobalCompressor(auxBuffer, chain);
+                    processGlobalChorus(auxBuffer, chain);
+                    processGlobalDelay(auxBuffer, chain);
+                    processGlobalReverb(auxBuffer, chain);
+                    processGlobalLfo(auxBuffer, chain);
+                    processGlobalLimiter(auxBuffer, chain);
+                }
                 updateOutputMeters(auxBuffer, true);
             }
         }
@@ -1819,7 +1910,7 @@ double DrumSynthAudioProcessor::getTailLengthSeconds() const
         tailSeconds = std::max(tailSeconds, delaySeconds * (1.0 + feedback * 6.0));
     }
 
-    if (getParamValue(kReverbMix) > 0.0001f)
+    if (getParamValue(kFxReverbEn) >= 0.5f && getParamValue(kReverbMix) > 0.0001f)
     {
         const auto size = static_cast<double>(clamp01(getParamValue(kReverbSize)));
         const auto predelay = static_cast<double>(juce::jlimit(0.0f, 100.0f, getParamValue(kReverbPredelay))) * 0.001;
@@ -1961,6 +2052,10 @@ void DrumSynthAudioProcessor::applyFactoryPreset(const int presetIndex)
         setParamValue(makePadParamId(pad, kPadOutputSuffix),
                       static_cast<float>(preset.outputBuses[static_cast<std::size_t>(pad)]));
     }
+
+    // A full kit preset overrides every pad: per-pad factory preset slots no
+    // longer describe the current state, so the UI must fall back to Custom.
+    currentPadPresetIndices.fill(-1);
 
     const auto& fx = preset.fx;
 
@@ -2202,10 +2297,10 @@ void DrumSynthAudioProcessor::loadFactoryOverrides()
             auto& s = preset.pads[static_cast<std::size_t>(padIdx)];
             s.level               = clamp01(static_cast<float>(padXml->getDoubleAttribute("level",      s.level)));
             s.tuneSemitones       = juce::jlimit(-24.0f, 24.0f, static_cast<float>(padXml->getDoubleAttribute("tune",       s.tuneSemitones)));
-            s.decaySeconds        = juce::jlimit(0.03f, 2.5f, static_cast<float>(padXml->getDoubleAttribute("decay",      s.decaySeconds)));
+            s.decaySeconds        = juce::jlimit(0.004f, 2.5f, static_cast<float>(padXml->getDoubleAttribute("decay",      s.decaySeconds)));
             s.attackSeconds       = juce::jlimit(0.0f, 0.05f, static_cast<float>(padXml->getDoubleAttribute("attack",     s.attackSeconds)));
             s.pitchDropSemitones  = juce::jlimit(0.0f, 48.0f, static_cast<float>(padXml->getDoubleAttribute("pitchDrop",  s.pitchDropSemitones)));
-            s.pitchDecaySeconds   = juce::jlimit(0.005f, 1.2f, static_cast<float>(padXml->getDoubleAttribute("pitchDecay", s.pitchDecaySeconds)));
+            s.pitchDecaySeconds   = juce::jlimit(0.002f, 1.2f, static_cast<float>(padXml->getDoubleAttribute("pitchDecay", s.pitchDecaySeconds)));
             s.noiseAmount         = clamp01(static_cast<float>(padXml->getDoubleAttribute("noise",      s.noiseAmount)));
             s.clickAmount         = clamp01(static_cast<float>(padXml->getDoubleAttribute("click",      s.clickAmount)));
             s.drive               = juce::jlimit(1.0f, 12.0f, static_cast<float>(padXml->getDoubleAttribute("drive",      s.drive)));
@@ -2399,6 +2494,8 @@ bool DrumSynthAudioProcessor::saveUserPreset(const juce::String& name)
 
     if (auto xml = state.createXml())
     {
+        const juce::ScopedLock midiLock(midiLearnLock);
+        writeMidiLearnXml(*xml, midiLearnMap);
         if (xml->writeTo(file))
         {
             currentUserPresetFile = file;
@@ -2435,6 +2532,8 @@ bool DrumSynthAudioProcessor::updateUserPreset(const juce::File& file)
 
     if (auto xml = state.createXml())
     {
+        const juce::ScopedLock midiLock(midiLearnLock);
+        writeMidiLearnXml(*xml, midiLearnMap);
         if (xml->writeTo(file))
         {
             currentUserPresetFile = file;
@@ -2476,6 +2575,13 @@ bool DrumSynthAudioProcessor::loadUserPreset(const juce::File& file)
     const int savedVersion = static_cast<int>(restoredState.getProperty("preset_version", 0));
     applyPresetMigrationDefaults(parameters, savedVersion);
     sanitizeParameterState(parameters);
+    {
+        // Older presets carry no MidiLearn block: readMidiLearnXml clears the
+        // map, which is the intended "preset replaces the learn state".
+        const juce::ScopedLock midiLock(midiLearnLock);
+        readMidiLearnXml(*xml, midiLearnMap);
+        rebuildMidiLearnSnapshot();
+    }
     restorePresetMetadata(restoredState, currentUserPresetFile, currentPresetIndex,
                           currentPadPresetIndices, factoryPresets);
 
@@ -2531,7 +2637,22 @@ void DrumSynthAudioProcessor::renderActiveVoicesForRange(juce::AudioBuffer<float
         if (av.voice == nullptr)
             continue;
 
+        // Audit fix C2: once an engaged fade-out has run to completion the
+        // voice must stay silent (never return to unity gain) until the
+        // release loop at the end of processBlock returns it to the pool.
+        if (av.fadeOutActive && av.fadeOutSamples <= 0)
+            continue;
+
+        // Mute/solo: inaudible pads are skipped. The voice is not advanced,
+        // so unmuting mid-tail resumes it exactly where it stopped.
+        if (! isPadAudibleInBlock(av.padIndex))
+            continue;
+
         av.voice->setPitchBendFactor(pitchBend.pitchBendFactor);
+        // Aftertouch: pressure adds up to +50% level on the ringing voice.
+        av.voice->setAftertouchGain(
+            1.0f + 0.5f * ((av.padIndex >= 0 && av.padIndex < mds::kNumPads)
+                               ? padAftertouch[static_cast<std::size_t>(av.padIndex)] : 0.0f));
 
         auto busIndex = av.outputBus;
         if (busIndex >= outputBusCount || getChannelCountOfBus(false, busIndex) <= 0)
@@ -2543,7 +2664,11 @@ void DrumSynthAudioProcessor::renderActiveVoicesForRange(juce::AudioBuffer<float
                                 ? currentPadReverbSend[(std::size_t) av.padIndex] : 0.0f;
         const float dlySend = (av.padIndex >= 0 && av.padIndex < mds::kNumPads)
                                 ? currentPadDelaySend[(std::size_t) av.padIndex] : 0.0f;
-        const bool useScratch = anySend
+        // Audit fix C1: any voice with an engaged fade-out must render into
+        // the scratch buffer so the per-sample fade never attenuates the
+        // other voices already summed into the destination bus.
+        const bool fadeEngaged = av.fadeOutActive || av.fadeOutSamples > 0;
+        const bool useScratch = (anySend || fadeEngaged)
                                 && voiceScratchBuffer.getNumSamples() >= startSample + numSamples
                                 && voiceScratchBuffer.getNumChannels() >= busBuffer.getNumChannels();
 
@@ -2559,11 +2684,18 @@ void DrumSynthAudioProcessor::renderActiveVoicesForRange(juce::AudioBuffer<float
             if (av.fadeOutSamples > 0)
             {
                 const float fadeStep = 1.0f / static_cast<float>(juce::jmax(1, av.fadeOutSamples));
-                for (int s = 0; s < numSamples && av.fadeOutSamples > 0; ++s, --av.fadeOutSamples)
+                // Audit fix C2: keep multiplying by the (clamped) gain for the
+                // whole range, so once the fade hits 0 the tail of this voice
+                // stays at 0 instead of jumping back to full level.
+                for (int s = 0; s < numSamples; ++s)
                 {
-                    av.fadeOutGain -= fadeStep;
-                    if (av.fadeOutGain < 0.0f)
-                        av.fadeOutGain = 0.0f;
+                    if (av.fadeOutSamples > 0)
+                    {
+                        av.fadeOutGain -= fadeStep;
+                        if (av.fadeOutGain < 0.0f)
+                            av.fadeOutGain = 0.0f;
+                        --av.fadeOutSamples;
+                    }
 
                     const auto sampleIndex = startSample + s;
                     for (int ch = 0; ch < busBuffer.getNumChannels(); ++ch)
@@ -2590,16 +2722,24 @@ void DrumSynthAudioProcessor::renderActiveVoicesForRange(juce::AudioBuffer<float
         }
         else
         {
+            // No send and no fade: render straight into the destination bus.
+            // (If the scratch buffer cannot hold the range, a fading voice
+            // still lands here; the scratch is pre-allocated to the maximum
+            // block size in prepareToPlay, so this is only a fallback.)
             av.voice->render(busBuffer, startSample, numSamples);
 
             if (av.fadeOutSamples > 0)
             {
                 const float fadeStep = 1.0f / static_cast<float>(juce::jmax(1, av.fadeOutSamples));
-                for (int s = 0; s < numSamples && av.fadeOutSamples > 0; ++s, --av.fadeOutSamples)
+                for (int s = 0; s < numSamples; ++s)
                 {
-                    av.fadeOutGain -= fadeStep;
-                    if (av.fadeOutGain < 0.0f)
-                        av.fadeOutGain = 0.0f;
+                    if (av.fadeOutSamples > 0)
+                    {
+                        av.fadeOutGain -= fadeStep;
+                        if (av.fadeOutGain < 0.0f)
+                            av.fadeOutGain = 0.0f;
+                        --av.fadeOutSamples;
+                    }
 
                     const auto sampleIndex = startSample + s;
                     for (int ch = 0; ch < busBuffer.getNumChannels(); ++ch)
@@ -2759,9 +2899,9 @@ void DrumSynthAudioProcessor::applyPerformanceMacros(const int padIndex, mds::Pa
     settings.pitchDropSemitones = juce::jlimit(0.0f, 48.0f, settings.pitchDropSemitones * (1.0f + punch * pitchPunch));
 
     if (isLow || isBody)
-        settings.decaySeconds = juce::jlimit(0.03f, 2.5f, settings.decaySeconds * (1.0f + weight * 0.33f));
+        settings.decaySeconds = juce::jlimit(0.004f, 2.5f, settings.decaySeconds * (1.0f + weight * 0.33f));
     else if (isPercLike)
-        settings.decaySeconds = juce::jlimit(0.03f, 1.2f, settings.decaySeconds * (1.0f + weight * 0.12f));
+        settings.decaySeconds = juce::jlimit(0.004f, 1.2f, settings.decaySeconds * (1.0f + weight * 0.12f));
 
     if (isLow)
     {
@@ -2801,9 +2941,24 @@ void DrumSynthAudioProcessor::applyPerformanceMacros(const int padIndex, mds::Pa
         settings.fmIndex = clamp01(settings.fmIndex + dirt * 0.12f);
 }
 
+bool DrumSynthAudioProcessor::isPadAudibleInBlock(const int pad) const noexcept
+{
+    if (pad < 0 || pad >= mds::kNumPads)
+        return true;
+    if (currentPadMute[static_cast<std::size_t>(pad)] >= 0.5f)
+        return false;
+    if (anyPadSoloActive && currentPadSolo[static_cast<std::size_t>(pad)] < 0.5f)
+        return false;
+    return true;
+}
+
 void DrumSynthAudioProcessor::triggerPadNow(const int padIndex, const float velocity)
 {
     if (padIndex < 0 || padIndex >= mds::kNumPads)
+        return;
+
+    // Muted / non-soloed pads do not trigger at all (mirrors the render gate).
+    if (! isPadAudibleInBlock(padIndex))
         return;
 
     if (preparedSampleRate <= 0.0)
@@ -2828,10 +2983,11 @@ void DrumSynthAudioProcessor::triggerPadNow(const int padIndex, const float velo
         for (int i = 0; i < activeVoiceCount; ++i)
         {
             auto& av = activeVoices[static_cast<std::size_t>(i)];
-            if (av.chokeGroup == chokeGroup && av.fadeOutSamples <= 0)
+            if (av.chokeGroup == chokeGroup && ! av.fadeOutActive)
             {
                 av.fadeOutSamples = fadeOutLen;
                 av.fadeOutGain = 1.0f;
+                av.fadeOutActive = true;
             }
         }
     }
@@ -2850,7 +3006,7 @@ void DrumSynthAudioProcessor::triggerPadNow(const int padIndex, const float velo
         {
             auto& av = activeVoices[static_cast<std::size_t>(i)];
             if (av.voiceModel == mds::PadVoiceModel::Kick
-                && av.fadeOutSamples <= 0
+                && ! av.fadeOutActive
                 && av.voice != nullptr
                 && av.voice->getCurrentAmplitude() > kAntiOverlapThreshold)
             {
@@ -2873,16 +3029,55 @@ void DrumSynthAudioProcessor::triggerPadNow(const int padIndex, const float velo
             }
         }
         auto& stolen = activeVoices[static_cast<std::size_t>(oldestIdx)];
-        if (stolen.fadeOutSamples <= 0)
+        if (! stolen.fadeOutActive)
         {
             stolen.fadeOutSamples = fadeOutLen;
             stolen.fadeOutGain = 1.0f;
+            stolen.fadeOutActive = true;
         }
         // If already fading, just release it immediately to make room
         else
         {
             voicePool.release(stolen.voiceModel, stolen.voice);
             stolen = activeVoices[static_cast<std::size_t>(--activeVoiceCount)];
+            activeVoices[static_cast<std::size_t>(activeVoiceCount)] = {};
+        }
+    }
+
+    // Audit fix H5: per-model pool exhaustion must not silently drop the
+    // trigger. If every slot of this voice model is in use, steal one:
+    // prefer the oldest already-fading voice (quietest cut), otherwise
+    // the oldest voice of the model.
+    {
+        int modelVoiceCount = 0;
+        int oldestIdx = -1;
+        int oldestFadingIdx = -1;
+        uint64_t oldestAge = 0;
+        uint64_t oldestFadingAge = 0;
+        for (int i = 0; i < activeVoiceCount; ++i)
+        {
+            const auto& av = activeVoices[static_cast<std::size_t>(i)];
+            if (av.voiceModel != voiceModel)
+                continue;
+            ++modelVoiceCount;
+            if (oldestIdx < 0 || av.activationAge < oldestAge)
+            {
+                oldestAge = av.activationAge;
+                oldestIdx = i;
+            }
+            if (av.fadeOutActive && (oldestFadingIdx < 0 || av.activationAge < oldestFadingAge))
+            {
+                oldestFadingAge = av.activationAge;
+                oldestFadingIdx = i;
+            }
+        }
+
+        if (modelVoiceCount >= mds::kMaxVoicesPerModel && oldestIdx >= 0)
+        {
+            const int victim = oldestFadingIdx >= 0 ? oldestFadingIdx : oldestIdx;
+            auto& slot = activeVoices[static_cast<std::size_t>(victim)];
+            voicePool.release(slot.voiceModel, slot.voice);
+            slot = activeVoices[static_cast<std::size_t>(--activeVoiceCount)];
             activeVoices[static_cast<std::size_t>(activeVoiceCount)] = {};
         }
     }
@@ -2915,31 +3110,31 @@ void DrumSynthAudioProcessor::setParamValue(const juce::String& paramId, const f
         parameter->setValueNotifyingHost(parameter->convertTo0to1(value));
 }
 
-void DrumSynthAudioProcessor::updateGlobalEffectParameters()
+void DrumSynthAudioProcessor::updateGlobalEffectParameters(FxBusState& chain)
 {
     const auto threshold = getParamValue(kCompThreshold);
     const auto ratio     = getParamValue(kCompRatio);
     const auto attack    = getParamValue(kCompAttack);
     const auto release   = getParamValue(kCompRelease);
 
-    if (threshold != compCache.threshold) { compressor.setThreshold(threshold); compCache.threshold = threshold; }
-    if (ratio     != compCache.ratio)     { compressor.setRatio(ratio);          compCache.ratio     = ratio; }
-    if (attack    != compCache.attack)    { compressor.setAttack(attack);         compCache.attack    = attack; }
-    if (release   != compCache.release)   { compressor.setRelease(release);       compCache.release   = release; }
+    if (threshold != chain.compCache.threshold) { chain.compressor.setThreshold(threshold); chain.compCache.threshold = threshold; }
+    if (ratio     != chain.compCache.ratio)     { chain.compressor.setRatio(ratio);          chain.compCache.ratio     = ratio; }
+    if (attack    != chain.compCache.attack)    { chain.compressor.setAttack(attack);         chain.compCache.attack    = attack; }
+    if (release   != chain.compCache.release)   { chain.compressor.setRelease(release);       chain.compCache.release   = release; }
 }
 
-void DrumSynthAudioProcessor::processGlobalTransient(juce::AudioBuffer<float>& mainBuffer)
+void DrumSynthAudioProcessor::processGlobalTransient(juce::AudioBuffer<float>& mainBuffer, FxBusState& chain)
 {
     if (getParamValue(kFxTransientEn) < 0.5f)
         return;
 
-    transientMixSmoother.setTargetValue(clamp01(getParamValue(kTransientMix)));
-    transientAttackSmoother.setTargetValue(juce::jlimit(-1.0f, 1.0f, getParamValue(kTransientAttack)));
-    transientSustainSmoother.setTargetValue(juce::jlimit(-1.0f, 1.0f, getParamValue(kTransientSustain)));
+    chain.transientMixSmoother.setTargetValue(clamp01(getParamValue(kTransientMix)));
+    chain.transientAttackSmoother.setTargetValue(juce::jlimit(-1.0f, 1.0f, getParamValue(kTransientAttack)));
+    chain.transientSustainSmoother.setTargetValue(juce::jlimit(-1.0f, 1.0f, getParamValue(kTransientSustain)));
 
-    const auto mix = transientMixSmoother.getTargetValue();
-    const auto attack = transientAttackSmoother.getTargetValue();
-    const auto sustain = transientSustainSmoother.getTargetValue();
+    const auto mix = chain.transientMixSmoother.getTargetValue();
+    const auto attack = chain.transientAttackSmoother.getTargetValue();
+    const auto sustain = chain.transientSustainSmoother.getTargetValue();
 
     if (mix <= 0.0001f || (std::abs(attack) <= 0.0001f && std::abs(sustain) <= 0.0001f))
         return;
@@ -2955,14 +3150,14 @@ void DrumSynthAudioProcessor::processGlobalTransient(juce::AudioBuffer<float>& m
 
     for (int i = 0; i < mainBuffer.getNumSamples(); ++i)
     {
-        const auto smoothedMix = transientMixSmoother.getNextValue();
-        const auto smoothedAttack = transientAttackSmoother.getNextValue();
-        const auto smoothedSustain = transientSustainSmoother.getNextValue();
+        const auto smoothedMix = chain.transientMixSmoother.getNextValue();
+        const auto smoothedAttack = chain.transientAttackSmoother.getNextValue();
+        const auto smoothedSustain = chain.transientSustainSmoother.getNextValue();
 
         for (int channel = 0; channel < numChannels; ++channel)
         {
-            auto& fast = transientFastEnv[static_cast<std::size_t>(channel)];
-            auto& slow = transientSlowEnv[static_cast<std::size_t>(channel)];
+            auto& fast = chain.transientFastEnv[static_cast<std::size_t>(channel)];
+            auto& slow = chain.transientSlowEnv[static_cast<std::size_t>(channel)];
             const auto dry = channelData[channel][i];
             const auto absSample = std::abs(dry);
 
@@ -2980,16 +3175,22 @@ void DrumSynthAudioProcessor::processGlobalTransient(juce::AudioBuffer<float>& m
     }
 }
 
-void DrumSynthAudioProcessor::processGlobalSaturator(juce::AudioBuffer<float>& mainBuffer)
+void DrumSynthAudioProcessor::processGlobalSaturator(juce::AudioBuffer<float>& mainBuffer, FxBusState& chain)
 {
     if (getParamValue(kFxSaturatorEn) < 0.5f)
+    {
+        chain.satDryDelayPrimed = false;
         return;
+    }
 
-    satMixSmoother.setTargetValue(clamp01(getParamValue(kSatMix)));
-    satDriveSmoother.setTargetValue(juce::jlimit(1.0f, 16.0f, getParamValue(kSatDrive)));
-    const auto mix = satMixSmoother.getTargetValue();
+    chain.satMixSmoother.setTargetValue(clamp01(getParamValue(kSatMix)));
+    chain.satDriveSmoother.setTargetValue(juce::jlimit(1.0f, 16.0f, getParamValue(kSatDrive)));
+    const auto mix = chain.satMixSmoother.getTargetValue();
     if (mix <= 0.0001f)
+    {
+        chain.satDryDelayPrimed = false;
         return;
+    }
 
     const bool studioQuality = getQualityMode() == QualityMode::Studio;
     const auto numChannels = juce::jmin(2, mainBuffer.getNumChannels());
@@ -2999,20 +3200,34 @@ void DrumSynthAudioProcessor::processGlobalSaturator(juce::AudioBuffer<float>& m
 
     if (studioQuality)
     {
-        if (fxDryBuffer.getNumChannels() < numChannels || fxDryBuffer.getNumSamples() < numSamples)
+        if (chain.dryBuffer.getNumChannels() < numChannels || chain.dryBuffer.getNumSamples() < numSamples)
             return;
 
+        auto& oversampler = numChannels == 1 ? chain.satOversamplingMono : chain.satOversamplingStereo;
+        chain.satDryDelay.setDelay(oversampler.getLatencyInSamples());
+        if (! chain.satDryDelayPrimed)
+        {
+            chain.satDryDelay.reset();
+            chain.satDryDelayPrimed = true;
+        }
         for (int ch = 0; ch < numChannels; ++ch)
-            fxDryBuffer.copyFrom(ch, 0, mainBuffer, ch, 0, numSamples);
+        {
+            auto* dst = chain.dryBuffer.getWritePointer(ch);
+            const auto* src = mainBuffer.getReadPointer(ch);
+            for (int i = 0; i < numSamples; ++i)
+            {
+                chain.satDryDelay.pushSample(ch, src[i]);
+                dst[i] = chain.satDryDelay.popSample(ch);
+            }
+        }
 
-        const auto startMix = satMixSmoother.getCurrentValue();
-        const auto endMix = satMixSmoother.skip(numSamples);
-        const auto drive = satDriveSmoother.skip(numSamples);
+        const auto startMix = chain.satMixSmoother.getCurrentValue();
+        const auto endMix = chain.satMixSmoother.skip(numSamples);
+        const auto drive = chain.satDriveSmoother.skip(numSamples);
         const auto normalizer = 1.0f / std::max(0.0001f, std::tanh(drive));
 
         juce::dsp::AudioBlock<float> fullBlock(mainBuffer);
         auto block = fullBlock.getSubsetChannelBlock(0, static_cast<std::size_t>(numChannels));
-        auto& oversampler = numChannels == 1 ? satOversamplingMono : satOversamplingStereo;
         auto oversampledBlock = oversampler.processSamplesUp(block);
         for (std::size_t ch = 0; ch < oversampledBlock.getNumChannels(); ++ch)
         {
@@ -3029,7 +3244,7 @@ void DrumSynthAudioProcessor::processGlobalSaturator(juce::AudioBuffer<float>& m
         for (int channel = 0; channel < numChannels; ++channel)
         {
             auto* wet = mainBuffer.getWritePointer(channel);
-            const auto* dry = fxDryBuffer.getReadPointer(channel);
+            const auto* dry = chain.dryBuffer.getReadPointer(channel);
             for (int i = 0; i < numSamples; ++i)
             {
                 const auto smoothedMix = numSamples > 1
@@ -3038,11 +3253,12 @@ void DrumSynthAudioProcessor::processGlobalSaturator(juce::AudioBuffer<float>& m
                 wet[i] = dry[i] + (wet[i] - dry[i]) * smoothedMix;
             }
 
-            saturatorPrevSample[static_cast<std::size_t>(channel)] = dry[numSamples - 1];
         }
 
         return;
     }
+
+    chain.satDryDelayPrimed = false;
 
     float* channelData[2] = {
         numChannels > 0 ? mainBuffer.getWritePointer(0) : nullptr,
@@ -3051,23 +3267,21 @@ void DrumSynthAudioProcessor::processGlobalSaturator(juce::AudioBuffer<float>& m
 
     for (int i = 0; i < numSamples; ++i)
     {
-        const auto smoothedDrive = satDriveSmoother.getNextValue();
-        const auto smoothedMix = satMixSmoother.getNextValue();
+        const auto smoothedDrive = chain.satDriveSmoother.getNextValue();
+        const auto smoothedMix = chain.satMixSmoother.getNextValue();
         const auto normalizer = 1.0f / std::max(0.0001f, std::tanh(smoothedDrive));
 
         for (int channel = 0; channel < numChannels; ++channel)
         {
-            auto& prevSample = saturatorPrevSample[static_cast<std::size_t>(channel)];
             const auto dry = channelData[channel][i];
-            float wet = std::tanh(dry * smoothedDrive) * normalizer;
+            const float wet = std::tanh(dry * smoothedDrive) * normalizer;
 
             channelData[channel][i] = dry + (wet - dry) * smoothedMix;
-            prevSample = dry;
         }
     }
 }
 
-void DrumSynthAudioProcessor::processGlobalCompressor(juce::AudioBuffer<float>& mainBuffer)
+void DrumSynthAudioProcessor::processGlobalCompressor(juce::AudioBuffer<float>& mainBuffer, FxBusState& chain)
 {
     if (getParamValue(kFxCompEn) < 0.5f)
         return;
@@ -3078,19 +3292,19 @@ void DrumSynthAudioProcessor::processGlobalCompressor(juce::AudioBuffer<float>& 
     if (mix <= 0.0001f && std::abs(makeupGain - 1.0f) <= 0.0001f)
         return;
 
-    updateGlobalEffectParameters();
+    updateGlobalEffectParameters(chain);
 
     const int numCh = mainBuffer.getNumChannels();
     const int numSamples = mainBuffer.getNumSamples();
-    if (fxDryBuffer.getNumChannels() < numCh || fxDryBuffer.getNumSamples() < numSamples)
+    if (chain.dryBuffer.getNumChannels() < numCh || chain.dryBuffer.getNumSamples() < numSamples)
         return;
 
     for (int ch = 0; ch < numCh; ++ch)
-        fxDryBuffer.copyFrom(ch, 0, mainBuffer, ch, 0, numSamples);
+        chain.dryBuffer.copyFrom(ch, 0, mainBuffer, ch, 0, numSamples);
 
     juce::dsp::AudioBlock<float> block(mainBuffer);
     juce::dsp::ProcessContextReplacing<float> context(block);
-    compressor.process(context);
+    chain.compressor.process(context);
 
     mainBuffer.applyGain(makeupGain);
 
@@ -3099,7 +3313,7 @@ void DrumSynthAudioProcessor::processGlobalCompressor(juce::AudioBuffer<float>& 
         for (int channel = 0; channel < numCh; ++channel)
         {
             auto* wet = mainBuffer.getWritePointer(channel);
-            const auto* dry = fxDryBuffer.getReadPointer(channel);
+            const auto* dry = chain.dryBuffer.getReadPointer(channel);
 
             for (int i = 0; i < numSamples; ++i)
                 wet[i] = dry[i] + (wet[i] - dry[i]) * mix;
@@ -3230,10 +3444,10 @@ bool DrumSynthAudioProcessor::loadUserPadPreset(const int padIndex, const juce::
 
     setParamValue(makePadParamId(padIndex, "level"),       clamp01(getF("level",      0.8f,    0.0f,    1.0f)));
     setParamValue(makePadParamId(padIndex, "tune"),        getF("tune",       0.0f,  -24.0f,   24.0f));
-    setParamValue(makePadParamId(padIndex, "decay"),       getF("decay",      0.35f,   0.03f,   2.5f));
+    setParamValue(makePadParamId(padIndex, "decay"),       getF("decay",      0.35f,   0.004f,  2.5f));
     setParamValue(makePadParamId(padIndex, "attack"),      getF("attack",     0.001f,  0.0f,    0.05f));
     setParamValue(makePadParamId(padIndex, "pitch_drop"),  getF("pitchDrop",  0.0f,    0.0f,   48.0f));
-    setParamValue(makePadParamId(padIndex, "pitch_decay"), getF("pitchDecay", 0.06f,   0.005f,  1.2f));
+    setParamValue(makePadParamId(padIndex, "pitch_decay"), getF("pitchDecay", 0.06f,   0.002f,  1.2f));
     setParamValue(makePadParamId(padIndex, "noise"),       clamp01(getF("noise",      0.2f,    0.0f,    1.0f)));
     setParamValue(makePadParamId(padIndex, "click"),       clamp01(getF("click",      0.1f,    0.0f,    1.0f)));
     setParamValue(makePadParamId(padIndex, "drive"),       getF("drive",      1.0f,    1.0f,   12.0f));
@@ -3267,7 +3481,7 @@ bool DrumSynthAudioProcessor::deleteUserPadPreset(const int padIndex, const juce
 // =============================================================================
 // Global reverb (DattorroPlateReverb replaces juce::Reverb)
 // =============================================================================
-void DrumSynthAudioProcessor::processGlobalReverb(juce::AudioBuffer<float>& mainBuffer)
+void DrumSynthAudioProcessor::processGlobalReverb(juce::AudioBuffer<float>& mainBuffer, FxBusState& chain)
 {
     if (getParamValue(kFxReverbEn) < 0.5f)
         return;
@@ -3287,13 +3501,13 @@ void DrumSynthAudioProcessor::processGlobalReverb(juce::AudioBuffer<float>& main
     auto* left  = mainBuffer.getWritePointer(0);
     auto* right = mainBuffer.getNumChannels() >= 2 ? mainBuffer.getWritePointer(1) : nullptr;
 
-    dattorroReverb.process(left, right, numSamples, rp);
+    chain.reverb.process(left, right, numSamples, rp);
 }
 
 // =============================================================================
 // Global EQ (ParametricEQ3Band)
 // =============================================================================
-void DrumSynthAudioProcessor::processGlobalEQ(juce::AudioBuffer<float>& mainBuffer)
+void DrumSynthAudioProcessor::processGlobalEQ(juce::AudioBuffer<float>& mainBuffer, FxBusState& chain)
 {
     if (getParamValue(kFxEqEn) < 0.5f)
         return;
@@ -3311,7 +3525,7 @@ void DrumSynthAudioProcessor::processGlobalEQ(juce::AudioBuffer<float>& mainBuff
     auto* left  = mainBuffer.getWritePointer(0);
     auto* right = mainBuffer.getNumChannels() >= 2 ? mainBuffer.getWritePointer(1) : nullptr;
 
-    fxEq.process(left, right, numSamples, ep);
+    chain.eq.process(left, right, numSamples, ep);
 }
 
 // =============================================================================
@@ -3399,7 +3613,7 @@ void DrumSynthAudioProcessor::processPadSends(juce::AudioBuffer<float>& mainBuff
 // =============================================================================
 // Global Chorus (StereoChorus)
 // =============================================================================
-void DrumSynthAudioProcessor::processGlobalChorus(juce::AudioBuffer<float>& mainBuffer)
+void DrumSynthAudioProcessor::processGlobalChorus(juce::AudioBuffer<float>& mainBuffer, FxBusState& chain)
 {
     if (getParamValue(kFxChorusEn) < 0.5f)
         return;
@@ -3416,13 +3630,13 @@ void DrumSynthAudioProcessor::processGlobalChorus(juce::AudioBuffer<float>& main
     auto* left  = mainBuffer.getWritePointer(0);
     auto* right = mainBuffer.getNumChannels() >= 2 ? mainBuffer.getWritePointer(1) : nullptr;
 
-    fxChorus.process(left, right, numSamples, cp);
+    chain.chorus.process(left, right, numSamples, cp);
 }
 
 // =============================================================================
 // Global Delay (StereoDelay with BPM sync)
 // =============================================================================
-void DrumSynthAudioProcessor::processGlobalDelay(juce::AudioBuffer<float>& mainBuffer)
+void DrumSynthAudioProcessor::processGlobalDelay(juce::AudioBuffer<float>& mainBuffer, FxBusState& chain)
 {
     if (getParamValue(kFxDelayEn) < 0.5f)
         return;
@@ -3448,8 +3662,11 @@ void DrumSynthAudioProcessor::processGlobalDelay(juce::AudioBuffer<float>& mainB
                 if (bpmOpt.hasValue())
                 {
                     dp.bpm = static_cast<float>(*bpmOpt);
-                    lastHostBpm.store(dp.bpm, std::memory_order_relaxed);
-                    delaySyncActive.store(true, std::memory_order_relaxed);
+                    if (chain.isMaster)
+                    {
+                        lastHostBpm.store(dp.bpm, std::memory_order_relaxed);
+                        delaySyncActive.store(true, std::memory_order_relaxed);
+                    }
                 }
             }
         }
@@ -3460,13 +3677,13 @@ void DrumSynthAudioProcessor::processGlobalDelay(juce::AudioBuffer<float>& mainB
     auto* left  = mainBuffer.getWritePointer(0);
     auto* right = mainBuffer.getNumChannels() >= 2 ? mainBuffer.getWritePointer(1) : nullptr;
 
-    fxDelay.process(left, right, numSamples, dp);
+    chain.delay.process(left, right, numSamples, dp);
 }
 
 // =============================================================================
 // Global LFO (Tremolo / Auto-pan)
 // =============================================================================
-void DrumSynthAudioProcessor::processGlobalLfo(juce::AudioBuffer<float>& mainBuffer)
+void DrumSynthAudioProcessor::processGlobalLfo(juce::AudioBuffer<float>& mainBuffer, FxBusState& chain)
 {
     const float depth = clamp01(getParamValue(kLfoDepth));
     if (depth <= 0.0001f) return;
@@ -3489,10 +3706,10 @@ void DrumSynthAudioProcessor::processGlobalLfo(juce::AudioBuffer<float>& mainBuf
         float lfo = 0.0f;
         switch (wave)
         {
-            case 1:  lfo = 1.0f - 4.0f * std::abs(lfoPhase - 0.5f); break;   // triangle
-            case 2:  lfo = lfoPhase * 2.0f - 1.0f;                   break;   // saw
-            case 3:  lfo = lfoPhase < 0.5f ? 1.0f : -1.0f;           break;   // square
-            default: lfo = std::sin(lfoPhase * juce::MathConstants<float>::twoPi); break; // sine
+            case 1:  lfo = 1.0f - 4.0f * std::abs(chain.lfoPhase - 0.5f); break;   // triangle
+            case 2:  lfo = chain.lfoPhase * 2.0f - 1.0f;                   break;   // saw
+            case 3:  lfo = chain.lfoPhase < 0.5f ? 1.0f : -1.0f;           break;   // square
+            default: lfo = std::sin(chain.lfoPhase * juce::MathConstants<float>::twoPi); break; // sine
         }
 
         const float tremAmt = depth * kTremDepth;
@@ -3511,15 +3728,15 @@ void DrumSynthAudioProcessor::processGlobalLfo(juce::AudioBuffer<float>& mainBuf
             left[i] *= trem;
         }
 
-        lfoPhase += phaseInc;
-        if (lfoPhase >= 1.0f) lfoPhase -= 1.0f;
+        chain.lfoPhase += phaseInc;
+        if (chain.lfoPhase >= 1.0f) chain.lfoPhase -= 1.0f;
     }
 }
 
 // =============================================================================
 // Global Limiter (OutputLimiter)
 // =============================================================================
-void DrumSynthAudioProcessor::processGlobalLimiter(juce::AudioBuffer<float>& mainBuffer)
+void DrumSynthAudioProcessor::processGlobalLimiter(juce::AudioBuffer<float>& mainBuffer, FxBusState& chain)
 {
     if (getParamValue(kFxLimiterEn) < 0.5f)
         return;
@@ -3532,7 +3749,7 @@ void DrumSynthAudioProcessor::processGlobalLimiter(juce::AudioBuffer<float>& mai
     auto* left  = mainBuffer.getWritePointer(0);
     auto* right = mainBuffer.getNumChannels() >= 2 ? mainBuffer.getWritePointer(1) : nullptr;
 
-    fxLimiter.process(left, right, numSamples, lp);
+    chain.limiter.process(left, right, numSamples, lp);
 }
 
 void DrumSynthAudioProcessor::processAuxBusSafety(juce::AudioBuffer<float>& busBuffer)

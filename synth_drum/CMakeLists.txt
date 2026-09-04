@@ -42,7 +42,7 @@ else()
 endif()
 
 juce_add_plugin(UWdeVST_drum
-    COMPANY_NAME "unicorn who dev / Charli Billabert"
+    COMPANY_NAME "UWdeVST"
     BUNDLE_ID "com.uwdevst.drum"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
@@ -53,7 +53,7 @@ juce_add_plugin(UWdeVST_drum
     PLUGIN_MANUFACTURER_CODE MQDS
     PLUGIN_CODE MDS1
     FORMATS ${MDS_PLUGIN_FORMATS}
-    PRODUCT_NAME "uwdevst_drum"
+    PRODUCT_NAME "UWdeVST_Drum"
     ICON_BIG   "${ASSETS_DIR}/logo,favic/logo_drum.png"
     ICON_SMALL "${ASSETS_DIR}/logo,favic/logo_drum.png"
 )
@@ -72,23 +72,9 @@ target_sources(UWdeVST_drum PRIVATE
     Source/Engine/DrumSynthVoice.h
     Source/Engine/FactoryPresets.cpp
     Source/Engine/FactoryPresets.h
+    Source/Engine/Curated8FactoryPadPresets.inc
     Source/Engine/FxProcessors.h
     Source/Engine/SinTable.h
-    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/KnobComponentV5.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/KnobComponentV5.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/FaderComponentV5.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/FaderComponentV5.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/VUMeterComponentV5.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/VUMeterComponentV5.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/EnvelopeDisplayComponentV5.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/EnvelopeDisplayComponentV5.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/OutputMeterComponentV5.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/OutputMeterComponentV5.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/ToggleButtonComponentV5.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/ToggleButtonComponentV5.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/SelectorComponentV5.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/SelectorComponentV5.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../new composants/UIThemeV5.h"
 )
 
 target_include_directories(UWdeVST_drum PRIVATE
@@ -114,44 +100,7 @@ if (MSVC)
     )
 endif()
 
-juce_add_binary_data(DrumAssets SOURCES
-    "${ASSETS_DIR}/icons/00_communes/001_level_00001_.png"
-    "${ASSETS_DIR}/icons/00_communes/002_tune_00001_.png"
-    "${ASSETS_DIR}/icons/00_communes/003_attack_00001_.png"
-    "${ASSETS_DIR}/icons/00_communes/004_decay_00001_.png"
-    "${ASSETS_DIR}/icons/00_communes/005_sustain_00001_.png"
-    "${ASSETS_DIR}/icons/00_communes/006_release_00001_.png"
-    "${ASSETS_DIR}/icons/00_communes/007_cutoff_00001_.png"
-    "${ASSETS_DIR}/icons/00_communes/008_pan_00001_.png"
-    "${ASSETS_DIR}/icons/00_communes/009_brightness_00001_.png"
-    "${ASSETS_DIR}/icons/00_communes/010_character_00001_.png"
-    "${ASSETS_DIR}/icons/00_communes/006_gain_volume.png"
-    "${ASSETS_DIR}/icons/00_communes/012_output_routing.png"
-    "${ASSETS_DIR}/icons/00_communes/013_keyboard_toggle.png"
-    "${ASSETS_DIR}/icons/01_mds/014_categorie_kick.png"
-    "${ASSETS_DIR}/icons/01_mds/015_categorie_snare.png"
-    "${ASSETS_DIR}/icons/01_mds/016_categorie_hi_hat.png"
-    "${ASSETS_DIR}/icons/01_mds/018_categorie_tom.png"
-    "${ASSETS_DIR}/icons/01_mds/019_categorie_fx.png"
-    "${ASSETS_DIR}/icons/01_mds/020_single_note.png"
-    "${ASSETS_DIR}/icons/01_mds/021_compressor.png"
-    "${ASSETS_DIR}/icons/01_mds/022_saturator.png"
-    "${ASSETS_DIR}/icons/09_fx/044_envelope_amount_00001_.png"
-    "${ASSETS_DIR}/icons/01_mds/024_macro_punch.png"
-    "${ASSETS_DIR}/icons/01_mds/025_macro_weight.png"
-    "${ASSETS_DIR}/icons/01_mds/026_macro_air.png"
-    "${ASSETS_DIR}/icons/09_fx/037_drive_saturation_00001_.png"
-    "${ASSETS_DIR}/icons/01_mds/012_pitch_drop_00001_.png"
-    "${ASSETS_DIR}/icons/01_mds/013_click_00001_.png"
-    "${ASSETS_DIR}/icons/01_mds/014_noise_00001_.png"
-    "${ASSETS_DIR}/icons/09_fx/024_threshold_00001_.png"
-    "${ASSETS_DIR}/icons/09_fx/025_ratio_00001_.png"
-    "${ASSETS_DIR}/icons/09_fx/026_makeup_gain_00001_.png"
-    "${ASSETS_DIR}/icons/09_fx/038_blend_mix_00001_.png"
-)
-
 target_link_libraries(UWdeVST_drum PRIVATE
-    DrumAssets
     juce::juce_audio_utils
     juce::juce_dsp
     juce::juce_recommended_config_flags

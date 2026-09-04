@@ -12,11 +12,15 @@ public:
 
     void configure(int index, const juce::String& padName, juce::Colour catColour);
     void setSelected(bool s);
+    void setMuted(bool m)   { if (muted != m)   { muted = m;   repaint(); } }
+    void setSoloed(bool s)  { if (soloed != s)  { soloed = s;  repaint(); } }
     void setActivityLevel(float linear);
     void flash();
     void tickFlash();
 
     std::function<void(int)> onClicked;
+    std::function<void(int)> onMuteClicked;
+    std::function<void(int)> onSoloClicked;
 
     void paint(juce::Graphics&) override;
     void resized() override;
@@ -26,12 +30,25 @@ public:
     void mouseExit(const juce::MouseEvent&) override;
 
 private:
+    juce::Rectangle<int> muteZone() const
+    {
+        auto b = getLocalBounds();
+        return { 8, b.getBottom() - 28, 18, 14 };
+    }
+    juce::Rectangle<int> soloZone() const
+    {
+        auto b = getLocalBounds();
+        return { b.getRight() - 26, b.getBottom() - 28, 18, 14 };
+    }
+
     int idx = 0;
     juce::String name;
     juce::Colour catColour = UITheme::ledOff();
     bool selected  = false;
     bool hovered   = false;
     bool pressed   = false;
+    bool muted     = false;
+    bool soloed    = false;
     float activity   = 0.0f;
     float flashAlpha = 0.0f;
 };
@@ -176,9 +193,52 @@ inline void DrumPad::paint(juce::Graphics& g)
         g.setColour(juce::Colours::black.withAlpha(0.20f));
         g.fillRoundedRectangle(b, R);
     }
+
+    // ── Muted pads are dimmed ─────────────────────────────────────────────────
+    if (muted)
+    {
+        g.setColour(UITheme::bgDeep().withAlpha(0.50f));
+        g.fillRoundedRectangle(b.reduced(1.0f), R);
+    }
+
+    // ── Mute / Solo mini-switches (bottom corners, above the velocity bar) ────
+    g.setFont(UITheme::fontMicro().withHeight(8.5f).boldened());
+    {
+        auto mz = muteZone().toFloat();
+        g.setColour(muted ? UITheme::accentRed().withAlpha(0.28f)
+                          : UITheme::panelInset().withAlpha(0.85f));
+        g.fillRoundedRectangle(mz, 3.0f);
+        g.setColour(muted ? UITheme::accentRed() : UITheme::textMuted());
+        g.drawRoundedRectangle(mz, 3.0f, 1.0f);
+        g.drawText("M", mz, juce::Justification::centred, false);
+    }
+    {
+        auto sz = soloZone().toFloat();
+        g.setColour(soloed ? UITheme::accentGreen().withAlpha(0.28f)
+                           : UITheme::panelInset().withAlpha(0.85f));
+        g.fillRoundedRectangle(sz, 3.0f);
+        g.setColour(soloed ? UITheme::accentGreen() : UITheme::textMuted());
+        g.drawRoundedRectangle(sz, 3.0f, 1.0f);
+        g.drawText("S", sz, juce::Justification::centred, false);
+    }
 }
 
-inline void DrumPad::mouseDown (const juce::MouseEvent&) { pressed = true;  repaint(); }
+inline void DrumPad::mouseDown(const juce::MouseEvent& e)
+{
+    // M/S corner switches act on click; the rest of the pad triggers the drum.
+    if (muteZone().contains(e.getPosition()))
+    {
+        if (onMuteClicked) onMuteClicked(idx);
+        return;
+    }
+    if (soloZone().contains(e.getPosition()))
+    {
+        if (onSoloClicked) onSoloClicked(idx);
+        return;
+    }
+    pressed = true;
+    repaint();
+}
 inline void DrumPad::mouseUp   (const juce::MouseEvent&)
 {
     pressed = false;

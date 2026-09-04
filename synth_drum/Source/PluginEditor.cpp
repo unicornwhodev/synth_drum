@@ -1,50 +1,13 @@
 #include "PluginEditor.h"
-#include "BinaryData.h"
 #include <cmath>
 
 using namespace UITheme;
 
 namespace
 {
-class EditorLookAndFeelHW final : public juce::LookAndFeel_V4
+class EditorLookAndFeel final : public juce::LookAndFeel_V4
 {
 public:
-    juce::Font getComboBoxFont (juce::ComboBox&) override
-    {
-        return UITheme::fontLabel();
-    }
-
-    juce::Label* createComboBoxTextBox (juce::ComboBox& box) override
-    {
-        auto* label = juce::LookAndFeel_V4::createComboBoxTextBox (box);
-        label->setFont (UITheme::fontLabel());
-        label->setColour (juce::Label::textColourId, UITheme::textMain());
-        label->setColour (juce::Label::backgroundColourId, juce::Colours::transparentBlack);
-        return label;
-    }
-
-    void positionComboBoxText (juce::ComboBox& box, juce::Label& label) override
-    {
-        label.setBounds (12, 0, box.getWidth() - 34, box.getHeight());
-    }
-
-    void drawComboBox (juce::Graphics& g, int width, int height, bool, int, int, int, int, juce::ComboBox&) override
-    {
-        auto area = juce::Rectangle<float> (0.0f, 0.0f, (float) width, (float) height).reduced (0.5f);
-        UITheme::fillPanel (g, area);
-        auto rail = area.reduced (12.0f, 8.0f).removeFromTop (2.0f);
-        UITheme::drawLED (g, rail, false, UITheme::accentOrange());
-
-        juce::Path arrow;
-        const float cx = area.getRight() - 16.0f;
-        const float cy = area.getCentreY() + 1.0f;
-        arrow.startNewSubPath (cx - 4.5f, cy - 3.0f);
-        arrow.lineTo (cx, cy + 2.0f);
-        arrow.lineTo (cx + 4.5f, cy - 3.0f);
-        g.setColour (UITheme::accentOrange());
-        g.strokePath (arrow, juce::PathStrokeType (1.8f));
-    }
-
     void drawButtonBackground (juce::Graphics& g,
                                juce::Button& button,
                                const juce::Colour&, bool isMouseOverButton,
@@ -54,9 +17,9 @@ public:
         UITheme::fillPanel (g, area);
 
         if (button.getToggleState())
-            UITheme::drawLED (g, area.reduced (12.0f, 0.0f).removeFromBottom (3.0f), true, UITheme::accentOrange());
+            UITheme::drawLED (g, area.reduced (12.0f, 0.0f).removeFromBottom (3.0f), true, UITheme::accent());
         else if (isMouseOverButton)
-            UITheme::drawLED (g, area.reduced (14.0f, 0.0f).removeFromBottom (2.0f), true, UITheme::accentOrange().withAlpha (0.35f));
+            UITheme::drawLED (g, area.reduced (14.0f, 0.0f).removeFromBottom (2.0f), true, UITheme::accent().withAlpha (0.35f));
 
         if (isButtonDown)
         {
@@ -78,79 +41,6 @@ public:
         g.setColour (UITheme::textMain().withAlpha (isButtonDown ? 0.78f : 1.0f));
         g.setFont (UITheme::fontLabel());
         g.drawText (button.getButtonText(), button.getLocalBounds(), juce::Justification::centred, false);
-    }
-
-    juce::Font getPopupMenuFont() override
-    {
-        return UITheme::fontLabel();
-    }
-
-    void drawPopupMenuBackground (juce::Graphics& g, int width, int height) override
-    {
-        UITheme::fillPanel (g, juce::Rectangle<float> (0.0f, 0.0f, (float) width, (float) height));
-    }
-
-    void drawPopupMenuItem (juce::Graphics& g,
-                            const juce::Rectangle<int>& area,
-                            bool isSeparator,
-                            bool isActive,
-                            bool isHighlighted,
-                            bool,
-                            bool,
-                            const juce::String& text,
-                            const juce::String&, const juce::Drawable*,
-                            const juce::Colour* textColourToUse) override
-    {
-        if (isSeparator)
-        {
-            g.setColour (juce::Colours::white.withAlpha (0.08f));
-            g.drawHorizontalLine (area.getCentreY(), (float) area.getX() + 8.0f, (float) area.getRight() - 8.0f);
-            return;
-        }
-
-        auto row = area.toFloat().reduced (4.0f, 1.0f);
-        if (isHighlighted)
-            UITheme::fillInset (g, row);
-
-        g.setColour (textColourToUse != nullptr ? *textColourToUse
-                                                : (isActive ? UITheme::textMain() : UITheme::textDim()));
-        g.setFont (UITheme::fontLabel());
-        g.drawText (text, area.reduced (12, 0), juce::Justification::centredLeft, false);
-    }
-
-    void drawRotarySlider (juce::Graphics& g,
-                           int x, int y, int width, int height,
-                           float sliderPosProportional,
-                           float rotaryStartAngle,
-                           float rotaryEndAngle,
-                           juce::Slider&) override
-    {
-        auto bounds = juce::Rectangle<float> ((float) x, (float) y, (float) width, (float) height).reduced (4.0f);
-        const auto centre = bounds.getCentre();
-        const auto radius = juce::jmin (bounds.getWidth(), bounds.getHeight()) * 0.5f;
-
-        g.setColour (juce::Colours::black.withAlpha (0.34f));
-        g.fillEllipse (bounds.translated (0.0f, 5.0f));
-
-        juce::ColourGradient outer (UITheme::panelHover(), centre.x, bounds.getY(),
-                                    UITheme::bgBase(), centre.x, bounds.getBottom(), false);
-        outer.addColour (0.5, UITheme::panelBase());
-        g.setGradientFill (outer);
-        g.fillEllipse (bounds);
-
-        g.setColour (juce::Colours::white.withAlpha (0.08f));
-        g.drawEllipse (bounds, 1.0f);
-
-        juce::Path arc;
-        const auto angle = juce::jmap (sliderPosProportional, rotaryStartAngle, rotaryEndAngle);
-        arc.addCentredArc (centre.x, centre.y, radius * 0.96f, radius * 0.96f, 0.0f, rotaryStartAngle, angle, true);
-        g.setColour (UITheme::accentOrange().withAlpha(0.82f));
-        g.strokePath (arc, juce::PathStrokeType (4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-
-        auto p1 = centre.getPointOnCircumference (radius * 0.18f, angle);
-        auto p2 = centre.getPointOnCircumference (radius * 0.70f, angle);
-        g.setColour (UITheme::textMain());
-        g.drawLine ({ p1, p2 }, 3.1f);
     }
 };
 
@@ -174,15 +64,49 @@ inline FxModuleDef makeFxModule(
 
 const std::array<FxModuleDef, 8> kFxModules =
 {
-    makeFxModule("SATURATOR",  "Harmonic warmth",        "fx_saturator_en", {"sat_drive", "sat_mix", nullptr, nullptr},                                      UITheme::accentOrange()),
+    makeFxModule("SATURATOR",  "Harmonic warmth",        "fx_saturator_en", {"sat_drive", "sat_mix", nullptr, nullptr},                                      UITheme::padKick()),
     makeFxModule("TRANSIENT",  "Snappy attack shaping",  "fx_transient_en", {"transient_attack", "transient_sustain", "transient_mix", nullptr},              UITheme::accentAmber()),
     makeFxModule("COMPRESSOR", "Dynamic control",        "fx_comp_en",      {"comp_threshold", "comp_ratio", "comp_attack", "comp_release"},                  UITheme::accentRed()),
-    makeFxModule("EQ",         "Sculpt your tone",       "fx_eq_en",        {"eq_low_gain", "eq_mid_gain", "eq_high_gain", "eq_mid_q"},                       UITheme::accentGreen()),
+    makeFxModule("EQ",         "Sculpt your tone",       "fx_eq_en",        {"eq_low_gain", "eq_mid_gain", "eq_high_gain", "eq_mid_q"},                       UITheme::padTom()),
     makeFxModule("CHORUS",     "Wide modulation",        "fx_chorus_en",    {"chorus_rate", "chorus_depth", "chorus_mix", nullptr},                          UITheme::accentCyan()),
-    makeFxModule("DELAY",      "Echo with character",    "fx_delay_en",     {"delay_time", "delay_feedback", "delay_mix", nullptr},                          UITheme::accentPurple()),
-    makeFxModule("REVERB",     "Spatial depth",          "fx_reverb_en",    {"reverb_size", "reverb_damping", "reverb_mix", "reverb_predelay"},               UITheme::accentTeal()),
-    makeFxModule("LIMITER",    "Protect your output",    "fx_limiter_en",   {"limiter_threshold", "limiter_release", nullptr, nullptr},                      UITheme::accentAmber())
+    makeFxModule("DELAY",      "Echo with character",    "fx_delay_en",     {"delay_time", "delay_feedback", "delay_mix", nullptr},                          UITheme::accentTeal()),
+    makeFxModule("REVERB",     "Spatial depth",          "fx_reverb_en",    {"reverb_size", "reverb_damping", "reverb_mix", "reverb_predelay"},               UITheme::accentGreen()),
+    makeFxModule("LIMITER",    "Protect your output",    "fx_limiter_en",   {"limiter_threshold", "limiter_release", nullptr, nullptr},                      UITheme::padCrash())
 };
+
+// Display name + unit for each FX parameter (knob caption and value readout).
+struct FxParamUiInfo { const char* label; const char* unit; };
+
+inline FxParamUiInfo fxParamUiInfo(const char* paramId)
+{
+    const juce::String id(paramId != nullptr ? paramId : "");
+    if (id == "sat_drive")         return { "DRIVE", "x" };
+    if (id == "sat_mix")           return { "MIX", "%" };
+    if (id == "transient_attack")  return { "ATTACK", "%" };
+    if (id == "transient_sustain") return { "SUSTAIN", "%" };
+    if (id == "transient_mix")     return { "MIX", "%" };
+    if (id == "comp_threshold")    return { "THRESH", "dB" };
+    if (id == "comp_ratio")        return { "RATIO", "x" };
+    if (id == "comp_attack")       return { "ATTACK", "ms" };
+    if (id == "comp_release")      return { "RELEASE", "ms" };
+    if (id == "eq_low_gain")       return { "LOW", "dB" };
+    if (id == "eq_mid_gain")       return { "MID", "dB" };
+    if (id == "eq_high_gain")      return { "HIGH", "dB" };
+    if (id == "eq_mid_q")          return { "MID Q", "x" };
+    if (id == "chorus_rate")       return { "RATE", "Hz" };
+    if (id == "chorus_depth")      return { "DEPTH", "%" };
+    if (id == "chorus_mix")        return { "MIX", "%" };
+    if (id == "delay_time")        return { "TIME", "ms" };
+    if (id == "delay_feedback")    return { "FEEDBACK", "%" };
+    if (id == "delay_mix")         return { "MIX", "%" };
+    if (id == "reverb_size")       return { "SIZE", "%" };
+    if (id == "reverb_damping")    return { "DAMP", "%" };
+    if (id == "reverb_mix")        return { "MIX", "%" };
+    if (id == "reverb_predelay")   return { "PREDELAY", "ms" };
+    if (id == "limiter_threshold") return { "THRESH", "dB" };
+    if (id == "limiter_release")   return { "RELEASE", "ms" };
+    return { "PARAM", "" };
+}
 }
 
 // =============================================================================
@@ -190,7 +114,7 @@ DrumSynthAudioProcessorEditor::DrumSynthAudioProcessorEditor(DrumSynthAudioProce
     : AudioProcessorEditor(&processor), proc(processor)
 {
     setOpaque(true);
-    editorLookAndFeel = std::make_unique<EditorLookAndFeelHW>();
+    editorLookAndFeel = std::make_unique<EditorLookAndFeel>();
     setLookAndFeel(editorLookAndFeel.get());
 
     presetBox.setTextWhenNothingSelected("Select kit");
@@ -207,7 +131,13 @@ DrumSynthAudioProcessorEditor::DrumSynthAudioProcessorEditor(DrumSynthAudioProce
     for (int i = 0; i < kNumPads; ++i)
     {
         pads[i].configure(i, juce::String(mds::makePadName(i)), padCatColour(i));
-        pads[i].onClicked = [this](int idx) { selectPad(idx); };
+        pads[i].onClicked = [this](int idx)
+        {
+            selectPad(idx);
+            proc.queuePadTrigger(idx, 0.8f);  // audition the pad on click
+        };
+        pads[i].onMuteClicked = [this](int idx) { togglePadBoolParam(idx, "mute"); };
+        pads[i].onSoloClicked = [this](int idx) { togglePadBoolParam(idx, "solo"); };
         addAndMakeVisible(pads[i]);
     }
 
@@ -221,6 +151,9 @@ DrumSynthAudioProcessorEditor::DrumSynthAudioProcessorEditor(DrumSynthAudioProce
     addAndMakeVisible(clickKnob);
     addAndMakeVisible(driveKnob);
     addAndMakeVisible(cutoffKnob);
+    addAndMakeVisible(panKnob);
+    addAndMakeVisible(modelKnob1);
+    addAndMakeVisible(modelKnob2);
 
     addAndMakeVisible(macroPunch);
     addAndMakeVisible(macroWeight);
@@ -258,6 +191,30 @@ DrumSynthAudioProcessorEditor::DrumSynthAudioProcessorEditor(DrumSynthAudioProce
     delayNoteDivBox.setTextWhenNothingSelected("Division");
     addAndMakeVisible(delayNoteDivBox);
 
+    // Utility drawer (global engine settings, hidden by default)
+    velocityCurveBox.addItemList({ "Linear", "Soft", "Softer", "Hard", "Harder", "Fixed", "Touch" }, 1);
+    lfoWaveBox.addItemList({ "Sine", "Triangle", "Saw", "Square" }, 1);
+    qualityModeBox.addItemList({ "Live", "Studio" }, 1);
+    auto setupDrawerLabel = [](juce::Label& l, const char* text)
+    {
+        l.setText(text, juce::dontSendNotification);
+        l.setFont(UITheme::fontMicro().withHeight(8.0f));
+        l.setColour(juce::Label::textColourId, UITheme::textDim());
+        l.setJustificationType(juce::Justification::centredLeft);
+    };
+    setupDrawerLabel(velocityCurveLabel, "VELOCITY CURVE");
+    setupDrawerLabel(lfoWaveLabel, "LFO WAVE");
+    setupDrawerLabel(qualityModeLabel, "QUALITY");
+    for (auto* c : { static_cast<juce::Component*>(&velocityCurveLabel), static_cast<juce::Component*>(&velocityCurveBox),
+                     static_cast<juce::Component*>(&lfoWaveLabel), static_cast<juce::Component*>(&lfoWaveBox),
+                     static_cast<juce::Component*>(&qualityModeLabel), static_cast<juce::Component*>(&qualityModeBox),
+                     static_cast<juce::Component*>(&humanizeTimeKnob), static_cast<juce::Component*>(&humanizeLvlKnob),
+                     static_cast<juce::Component*>(&lfoRateKnob), static_cast<juce::Component*>(&lfoDepthKnob),
+                     static_cast<juce::Component*>(&auxPostFxBtn) })
+        utilityDrawerPanel.addAndMakeVisible(*c);
+    addChildComponent(utilityDrawerPanel);
+    utilityDrawerBtn.setClickingTogglesState(true);
+
     presetBox.onChange = [this]
     {
         if (presetUiRefreshing) return;
@@ -279,8 +236,18 @@ DrumSynthAudioProcessorEditor::DrumSynthAudioProcessorEditor(DrumSynthAudioProce
     nextBtn.onClick = [this] { navigateVisiblePreset(1); };
     utilityDrawerBtn.onClick = [this]
     {
-        utilityDrawerOpen = !utilityDrawerOpen;
+        utilityDrawerOpen = utilityDrawerBtn.getToggleState();
         utilityDrawerBtn.setButtonText(utilityDrawerOpen ? "Hide Utility" : "Utility");
+        if (utilityDrawerOpen)
+        {
+            layoutUtilityDrawer();
+            utilityDrawerPanel.setVisible(true);
+            utilityDrawerPanel.toFront(false);
+        }
+        else
+        {
+            utilityDrawerPanel.setVisible(false);
+        }
         repaint();
     };
     fxModuleSelector.onChange = [this]
@@ -306,6 +273,27 @@ DrumSynthAudioProcessorEditor::DrumSynthAudioProcessorEditor(DrumSynthAudioProce
     masterGainAttach = std::make_unique<SliderAttach>(apvts, "output_gain", masterGainKnob.getSlider());
     delaySyncAttach = std::make_unique<ButtonAttach>(apvts, "delay_sync", delaySyncBtn);
     delayNoteDivAttach = std::make_unique<ComboBoxAttach>(apvts, "delay_note_div", delayNoteDivBox);
+    delaySyncBtn.onClick = [this]
+    {
+        // The attachment writes the parameter first; re-evaluate the TIME
+        // knob enable state once the new value is visible.
+        juce::MessageManager::callAsync(
+            [safe = juce::Component::SafePointer<DrumSynthAudioProcessorEditor>(this)]
+            {
+                if (safe != nullptr)
+                    safe->refreshFxModuleUi();
+            });
+    };
+
+    // Utility drawer attachments (global params, never rebound)
+    humanizeTimeAttach = std::make_unique<SliderAttach>(apvts, "humanize_timing", humanizeTimeKnob.getSlider());
+    humanizeLvlAttach = std::make_unique<SliderAttach>(apvts, "humanize_level", humanizeLvlKnob.getSlider());
+    lfoRateAttach = std::make_unique<SliderAttach>(apvts, "lfo_rate", lfoRateKnob.getSlider());
+    lfoDepthAttach = std::make_unique<SliderAttach>(apvts, "lfo_depth", lfoDepthKnob.getSlider());
+    velocityCurveAttach = std::make_unique<ComboBoxAttach>(apvts, "velocity_curve", velocityCurveBox);
+    lfoWaveAttach = std::make_unique<ComboBoxAttach>(apvts, "lfo_wave", lfoWaveBox);
+    qualityModeAttach = std::make_unique<ComboBoxAttach>(apvts, "quality_mode", qualityModeBox);
+    auxPostFxAttach = std::make_unique<ButtonAttach>(apvts, "aux_post_fx", auxPostFxBtn);
 
     refreshPresetList();
     refreshFxModuleUi();
@@ -349,7 +337,8 @@ void DrumSynthAudioProcessorEditor::paint(juce::Graphics& g)
     drawGroupFrame(g, envBounds, "ENVELOPE SNAPSHOT", selCol);
     drawGroupFrame(g, voiceCoreBounds, "CORE", selCol);
     drawGroupFrame(g, voiceTimbreBounds, "TIMBRE", UITheme::accentCyan());
-    drawGroupFrame(g, voiceMacroBounds, "MACROS", UITheme::accentGreen());
+    drawGroupFrame(g, voiceModelBounds, "PAN / MODEL", selCol);
+    drawGroupFrame(g, voiceMacroBounds, "PERF MACROS — GLOBAL", UITheme::accentGreen());
 
     // Header bar
     {
@@ -580,17 +569,21 @@ void DrumSynthAudioProcessorEditor::resized()
         voiceCoreBounds = area.removeFromTop(coreH);
         area.removeFromTop(G);
 
-        const int timbreH = juce::jlimit(compact ? 142 : 160, compact ? 168 : 188,
-                                         (int) (area.getHeight() * 0.52f));
+        const int timbreH = juce::jlimit(compact ? 128 : 146, compact ? 150 : 168,
+                                         (int) (area.getHeight() * 0.44f));
         voiceTimbreBounds = area.removeFromTop(timbreH);
+        area.removeFromTop(G);
+        voiceModelBounds = area.removeFromTop(compact ? 78 : 92);
         area.removeFromTop(G);
         voiceMacroBounds = area;
 
         std::array<DrumKnob*, 6> core = { &levelKnob, &tuneKnob, &attackKnob, &decayKnob, &pitchDropKnob, &pitchDecayKnob };
         std::array<DrumKnob*, 4> timbre = { &noiseKnob, &clickKnob, &driveKnob, &cutoffKnob };
+        std::array<DrumKnob*, 3> model = { &panKnob, &modelKnob1, &modelKnob2 };
         std::array<DrumKnob*, 4> macros = { &macroPunch, &macroWeight, &macroAir, &macroDirt };
         placeKnobs(voiceCoreBounds, core, 3);
         placeKnobs(voiceTimbreBounds, timbre, 2);
+        placeKnobs(voiceModelBounds, model, 3);
         placeKnobs(voiceMacroBounds, macros, 4);
     }
 
@@ -632,7 +625,9 @@ void DrumSynthAudioProcessorEditor::resized()
         const int minSendH = compact ? 48 : 56;
         const int maxSendH = compact ? 78 : 90;
         const int preferredSendH = compact ? 64 : 74;
-        const int sendBottomRequirement = inspectorGap + delayH + inspectorGap + 2 + meterTargetH + meterBottomPad;
+        const bool showDelayRow = delaySyncBtn.isVisible();
+        const int delayRowTotalH = showDelayRow ? delayH + inspectorGap : 0;
+        const int sendBottomRequirement = inspectorGap + delayRowTotalH + 2 + meterTargetH + meterBottomPad;
         const int availableSendH = inspArea.getHeight() - sendBottomRequirement;
         const int sendH = juce::jlimit(minSendH, maxSendH,
                                        juce::jmin(preferredSendH, juce::jmax(minSendH, availableSendH)));
@@ -645,12 +640,15 @@ void DrumSynthAudioProcessorEditor::resized()
         delaySendKnob.setBounds(sendRow);
         inspArea.removeFromTop(inspectorGap);
 
-        auto delayRow = inspArea.removeFromTop(delayH);
-        const int delaySyncW = compact ? 84 : 92;
-        delaySyncBtn.setBounds(delayRow.removeFromLeft(delaySyncW).withSizeKeepingCentre(delaySyncW, compact ? 24 : 26));
-        delayRow.removeFromLeft(G);
-        delayNoteDivBox.setBounds(delayRow.withSizeKeepingCentre(delayRow.getWidth(), compact ? 24 : 26));
-        inspArea.removeFromTop(inspectorGap);
+        if (showDelayRow)
+        {
+            auto delayRow = inspArea.removeFromTop(delayH);
+            const int delaySyncW = compact ? 84 : 92;
+            delaySyncBtn.setBounds(delayRow.removeFromLeft(delaySyncW).withSizeKeepingCentre(delaySyncW, compact ? 24 : 26));
+            delayRow.removeFromLeft(G);
+            delayNoteDivBox.setBounds(delayRow.withSizeKeepingCentre(delayRow.getWidth(), compact ? 24 : 26));
+            inspArea.removeFromTop(inspectorGap);
+        }
 
         inspArea.removeFromTop(2);
         auto meterArea = inspArea;
@@ -658,6 +656,9 @@ void DrumSynthAudioProcessorEditor::resized()
         const int meterH = juce::jmin(meterTargetH, meterArea.getHeight());
         mainMeter.setBounds(meterArea.removeFromTop(meterH));
     }
+
+    if (utilityDrawerOpen)
+        layoutUtilityDrawer();
 }
 
 // =============================================================================
@@ -675,6 +676,15 @@ void DrumSynthAudioProcessorEditor::timerCallback()
         }
     }
     for (auto& p : pads) p.tickFlash();
+
+    // Reflect mute/solo parameter state on the pads (automation, presets, M/S clicks).
+    for (int i = 0; i < kNumPads; ++i)
+    {
+        if (auto* m = proc.getAPVTS().getRawParameterValue(DrumSynthAudioProcessor::makePadParamId(i, "mute")))
+            pads[i].setMuted(m->load() >= 0.5f);
+        if (auto* s = proc.getAPVTS().getRawParameterValue(DrumSynthAudioProcessor::makePadParamId(i, "solo")))
+            pads[i].setSoloed(s->load() >= 0.5f);
+    }
 
     mainMeter.setLevels(proc.getMainPeakMeter(), proc.getAuxPeakMeter());
 
@@ -720,6 +730,34 @@ void DrumSynthAudioProcessorEditor::refreshPadSelection()
     int sel = selectedPadFromParam();
     selectedPadIdx = sel;
     for (int i = 0; i < kNumPads; ++i) pads[i].setSelected(i == sel);
+
+    // Family-colour accents follow the selected pad (voice knobs + envelope).
+    const auto famCol = padCatColour(sel);
+    for (auto* k : { &levelKnob, &tuneKnob, &decayKnob, &attackKnob,
+                     &pitchDropKnob, &pitchDecayKnob, &noiseKnob, &clickKnob,
+                     &driveKnob, &cutoffKnob, &panKnob, &modelKnob1, &modelKnob2 })
+        k->setAccentColour(famCol);
+    envDisplay.setAccentColour(famCol);
+
+    // Pitch drop/decay have no effect on noise/metallic-based models
+    // (Clap = pad 3, Hats = 4-5, Crash = 10) — grey them out there.
+    const bool pitchRelevant = !(sel == 3 || sel == 4 || sel == 5 || sel == 10);
+    if (pitchDropKnob.isEnabled() != pitchRelevant)
+    {
+        pitchDropKnob.setEnabled(pitchRelevant);
+        pitchDecayKnob.setEnabled(pitchRelevant);
+    }
+}
+
+void DrumSynthAudioProcessorEditor::togglePadBoolParam(int pad, const char* suffix)
+{
+    auto* p = proc.getAPVTS().getParameter(DrumSynthAudioProcessor::makePadParamId(pad, suffix));
+    if (p == nullptr)
+        return;
+
+    p->beginChangeGesture();
+    p->setValueNotifyingHost(p->getValue() >= 0.5f ? 0.0f : 1.0f);
+    p->endChangeGesture();
 }
 
 juce::Colour DrumSynthAudioProcessorEditor::padCatColour(int i) const
@@ -729,14 +767,7 @@ juce::Colour DrumSynthAudioProcessorEditor::padCatColour(int i) const
 
 const char* DrumSynthAudioProcessorEditor::padCatName(int i) const
 {
-    switch (i / 3)
-    {
-        case 0: return "KICK";
-        case 1: return "SNARE";
-        case 2: return "HIHAT";
-        case 3: return "TOM";
-        default: return "FX";
-    }
+    return UITheme::padFamilyName(i);
 }
 
 // =============================================================================
@@ -867,6 +898,9 @@ void DrumSynthAudioProcessorEditor::rebindPadRoutingForSelected()
     reverbSendAttach.reset();
     delaySendAttach.reset();
     padOutputAttach.reset();
+    panAttach.reset();
+    modelKnob1Attach.reset();
+    modelKnob2Attach.reset();
 
     levelAttach = std::make_unique<SliderAttach>(
         apvts, DrumSynthAudioProcessor::makePadParamId(sel, "level"), levelKnob.getSlider());
@@ -896,6 +930,57 @@ void DrumSynthAudioProcessorEditor::rebindPadRoutingForSelected()
         apvts, DrumSynthAudioProcessor::makePadParamId(sel, "dly_send"), delaySendKnob.getSlider());
     padOutputAttach = std::make_unique<ComboBoxAttach>(
         apvts, DrumSynthAudioProcessor::makePadParamId(sel, "output"), padOutputBox);
+    panAttach = std::make_unique<SliderAttach>(
+        apvts, DrumSynthAudioProcessor::makePadParamId(sel, "pan"), panKnob.getSlider());
+
+    // Model-specific knobs: only the two parameters that actually affect the
+    // selected pad's voice model are shown, with their real labels.
+    const auto model = mds::getPadVoiceModel(sel);
+    const char* suffix1 = nullptr;
+    const char* suffix2 = nullptr;
+    const char* label1 = nullptr;
+    const char* label2 = nullptr;
+
+    switch (model)
+    {
+        case mds::PadVoiceModel::Clap:
+            suffix1 = "clap_spread";  label1 = "SPREAD";
+            suffix2 = "clap_density"; label2 = "DENSITY";
+            break;
+        case mds::PadVoiceModel::Hat:
+        case mds::PadVoiceModel::Crash:
+            suffix1 = "open_amount";      label1 = "OPEN";
+            suffix2 = "metallic_density"; label2 = "METAL";
+            break;
+        case mds::PadVoiceModel::PercWood:
+        case mds::PadVoiceModel::PercMetal:
+            suffix1 = "body_tone";  label1 = "BODY";
+            suffix2 = "modal_ring"; label2 = "RING";
+            break;
+        case mds::PadVoiceModel::Fx:
+            suffix1 = "fm_index"; label1 = "FM IDX";
+            suffix2 = "fm_sweep"; label2 = "FM SWEEP";
+            break;
+        default:
+            break; // Kick / Snare / Tom: no model-specific parameters
+    }
+
+    const bool hasModelKnobs = (suffix1 != nullptr);
+    if (modelKnob1.isVisible() != hasModelKnobs)
+    {
+        modelKnob1.setVisible(hasModelKnobs);
+        modelKnob2.setVisible(hasModelKnobs);
+    }
+
+    if (hasModelKnobs)
+    {
+        modelKnob1.setLabelText(label1);
+        modelKnob2.setLabelText(label2);
+        modelKnob1Attach = std::make_unique<SliderAttach>(
+            apvts, DrumSynthAudioProcessor::makePadParamId(sel, suffix1), modelKnob1.getSlider());
+        modelKnob2Attach = std::make_unique<SliderAttach>(
+            apvts, DrumSynthAudioProcessor::makePadParamId(sel, suffix2), modelKnob2.getSlider());
+    }
 }
 
 void DrumSynthAudioProcessorEditor::refreshFxModuleUi()
@@ -921,9 +1006,31 @@ void DrumSynthAudioProcessorEditor::refreshFxModuleUi()
             continue;
         }
         knobs[(std::size_t) i]->setVisible(true);
+        const auto info = fxParamUiInfo(pid);
+        knobs[(std::size_t) i]->setLabelText(info.label);
+        knobs[(std::size_t) i]->setUnit(info.unit);
         fxParamAttach[(std::size_t) i] = std::make_unique<SliderAttach>(
             proc.getAPVTS(), pid, knobs[(std::size_t) i]->getSlider());
     }
+
+    // Module accent colour propagates to the four parameter knobs.
+    for (auto* k : knobs)
+        k->setAccentColour(fx.accent);
+
+    // Delay sync controls only make sense alongside the DELAY module; when
+    // sync is active the free-running TIME knob has no effect.
+    const bool isDelayModule = fx.paramIds[0] != nullptr
+                            && juce::String(fx.paramIds[0]) == "delay_time";
+    if (delaySyncBtn.isVisible() != isDelayModule)
+    {
+        delaySyncBtn.setVisible(isDelayModule);
+        delayNoteDivBox.setVisible(isDelayModule);
+        resized();
+    }
+    bool delaySyncOn = false;
+    if (auto* p = proc.getAPVTS().getRawParameterValue("delay_sync"))
+        delaySyncOn = p->load() >= 0.5f;
+    fxParam1Knob.setEnabled(! isDelayModule || ! delaySyncOn);
 
     repaint();
 }
@@ -949,4 +1056,46 @@ void DrumSynthAudioProcessorEditor::refreshEnvelopeDisplay()
                                juce::jlimit(0.0f, 1.0f, d / 5.0f),
                                juce::jlimit(0.0f, 1.0f, n),
                                juce::jlimit(0.0f, 1.0f, pd / 2.0f));
+}
+
+// =============================================================================
+// UTILITY DRAWER
+// =============================================================================
+void DrumSynthAudioProcessorEditor::layoutUtilityDrawer()
+{
+    if (voiceZoneBounds.isEmpty())
+        return;
+
+    utilityDrawerPanel.setBounds(voiceZoneBounds);
+
+    auto inner = voiceZoneBounds.reduced(14);
+    inner.removeFromTop(26);  // section title
+
+    const int labelH = 12;
+    auto labelledRow = [&inner, labelH](juce::Label& label, juce::Component& box, int width)
+    {
+        auto col = inner.removeFromLeft(width);
+        label.setBounds(col.removeFromTop(labelH));
+        box.setBounds(col.removeFromTop(28).reduced(0, 0));
+        inner.removeFromLeft(8);
+    };
+
+    const int selW = (inner.getWidth() - 16) / 3;
+    labelledRow(velocityCurveLabel, velocityCurveBox, selW);
+    labelledRow(lfoWaveLabel, lfoWaveBox, selW);
+    labelledRow(qualityModeLabel, qualityModeBox, selW);
+    inner.removeFromTop(12);
+
+    auto knobRow = inner.removeFromTop(juce::jmin(120, juce::jmax(70, inner.getHeight() / 3)));
+    const int kw = (knobRow.getWidth() - 24) / 4;
+    humanizeTimeKnob.setBounds(knobRow.removeFromLeft(kw));
+    knobRow.removeFromLeft(8);
+    humanizeLvlKnob.setBounds(knobRow.removeFromLeft(kw));
+    knobRow.removeFromLeft(8);
+    lfoRateKnob.setBounds(knobRow.removeFromLeft(kw));
+    knobRow.removeFromLeft(8);
+    lfoDepthKnob.setBounds(knobRow);
+    inner.removeFromTop(12);
+
+    auxPostFxBtn.setBounds(inner.removeFromTop(28).withSizeKeepingCentre(150, 26));
 }

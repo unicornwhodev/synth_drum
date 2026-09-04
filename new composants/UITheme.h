@@ -2,7 +2,7 @@
 #include <JuceHeader.h>
 
 // =============================================================================
-// UITheme - graphite, brass, and teal theme for UWdeVST Drum Synth
+// UITheme - dark modern palette with per-family pad colours (UWdeVST Drum Synth)
 // =============================================================================
 namespace UITheme
 {
@@ -10,78 +10,77 @@ namespace UITheme
     // Colour Palette
     // =========================================================================
 
-    // Locked palette
-    inline juce::Colour graphiteDeep() { return juce::Colour::fromRGB(18, 17, 15); }
-    inline juce::Colour graphiteBase() { return juce::Colour::fromRGB(27, 25, 22); }
-    inline juce::Colour ironPanel()    { return juce::Colour::fromRGB(39, 37, 33); }
-    inline juce::Colour blackRecess()  { return juce::Colour::fromRGB(11, 11, 10); }
-    inline juce::Colour ivoryText()    { return juce::Colour::fromRGB(238, 231, 216); }
-    inline juce::Colour mutedText()    { return juce::Colour::fromRGB(175, 167, 149); }
-    inline juce::Colour brass()        { return juce::Colour::fromRGB(199, 146, 56); }
-    inline juce::Colour oxidizedTeal() { return juce::Colour::fromRGB(26, 167, 161); }
-    inline juce::Colour copper()       { return juce::Colour::fromRGB(184, 106, 58); }
-    inline juce::Colour vermilion()    { return juce::Colour::fromRGB(216, 74, 53); }
-    inline juce::Colour signalGreen()  { return juce::Colour::fromRGB(107, 175, 106); }
-
     // Background hierarchy
-    inline juce::Colour bgDeep()      { return graphiteDeep(); }
-    inline juce::Colour bgBase()      { return graphiteBase(); }
-    inline juce::Colour bgElevated()  { return ironPanel(); }
+    inline juce::Colour bgDeep()      { return juce::Colour::fromRGB(11, 13, 16); }
+    inline juce::Colour bgBase()      { return juce::Colour::fromRGB(16, 19, 23); }
+    inline juce::Colour bgElevated()  { return juce::Colour::fromRGB(25, 28, 34); }
 
     // Panel surfaces
-    inline juce::Colour panelBase()   { return ironPanel(); }
-    inline juce::Colour panelHover()  { return juce::Colour::fromRGB(49, 47, 42); }
-    inline juce::Colour panelActive() { return juce::Colour::fromRGB(59, 54, 44); }
-    inline juce::Colour panelInset()  { return blackRecess(); }
+    inline juce::Colour panelBase()   { return juce::Colour::fromRGB(25, 28, 34); }
+    inline juce::Colour panelHover()  { return juce::Colour::fromRGB(32, 36, 43); }
+    inline juce::Colour panelActive() { return juce::Colour::fromRGB(38, 43, 51); }
+    inline juce::Colour panelInset()  { return juce::Colour::fromRGB(8, 9, 11); }
 
-    // Accent colours - section-based
-    inline juce::Colour accentOrange()  { return brass(); }
-    inline juce::Colour accentCyan()    { return oxidizedTeal(); }
-    inline juce::Colour accentGreen()   { return signalGreen(); }
-    inline juce::Colour accentAmber()   { return juce::Colour::fromRGB(208, 160, 58); }
-    inline juce::Colour accentRed()     { return vermilion(); }
-    inline juce::Colour accentPurple()  { return copper(); }
-    inline juce::Colour accentTeal()    { return oxidizedTeal(); }
+    // Accent colours
+    inline juce::Colour accent()       { return juce::Colour::fromRGB(245, 171, 53); }
+    inline juce::Colour accentAmber()  { return accent(); }
+    inline juce::Colour accentCyan()   { return juce::Colour::fromRGB(80, 195, 220); }
+    inline juce::Colour accentGreen()  { return juce::Colour::fromRGB(120, 200, 110); }
+    inline juce::Colour accentRed()    { return juce::Colour::fromRGB(235, 85, 75); }
+    inline juce::Colour accentTeal()   { return juce::Colour::fromRGB(70, 190, 160); }
 
-    // Pad category colours
-    inline juce::Colour catKick()   { return brass(); }
-    inline juce::Colour catSnare()  { return copper(); }
-    inline juce::Colour catHiHat()  { return oxidizedTeal(); }
-    inline juce::Colour catTom()    { return juce::Colour::fromRGB(89, 139, 132); }
-    inline juce::Colour catClap()   { return vermilion(); }
-    inline juce::Colour catFX()     { return signalGreen(); }
-    inline juce::Colour catCrash()  { return accentAmber(); }
+    // Pad family colours — every pad of a family shares the exact same colour
+    inline juce::Colour padKick()  { return juce::Colour::fromRGB(240, 130, 60); }
+    inline juce::Colour padSnare() { return juce::Colour::fromRGB(235, 85, 75); }
+    inline juce::Colour padClap()  { return juce::Colour::fromRGB(215, 95, 160); }
+    inline juce::Colour padHat()   { return juce::Colour::fromRGB(80, 195, 220); }
+    inline juce::Colour padPerc()  { return juce::Colour::fromRGB(70, 190, 160); }
+    inline juce::Colour padTom()   { return juce::Colour::fromRGB(150, 120, 230); }
+    inline juce::Colour padCrash() { return juce::Colour::fromRGB(230, 200, 80); }
+    inline juce::Colour padFx()    { return juce::Colour::fromRGB(120, 200, 110); }
 
     inline juce::Colour padCategoryColour(int padIndex)
     {
         switch (padIndex)
         {
-            case 0:  return catKick();
-            case 1:  return accentAmber();
-            case 2:  return catSnare();
-            case 3:  return catClap();
-            case 4:  return catHiHat();
-            case 5:  return oxidizedTeal().brighter(0.18f);
-            case 6:  return signalGreen();
-            case 7:  return brass().interpolatedWith(oxidizedTeal(), 0.35f);
-            case 8:  return catTom();
-            case 9:  return copper();
-            case 10: return catCrash();
-            case 11: return vermilion();
-            default: return catFX();
+            case 0: case 1: return padKick();
+            case 2:         return padSnare();
+            case 3:         return padClap();
+            case 4: case 5: return padHat();
+            case 6: case 7: return padPerc();
+            case 8: case 9: return padTom();
+            case 10:        return padCrash();
+            case 11:        return padFx();
+            default:        return padFx();
+        }
+    }
+
+    inline const char* padFamilyName(int padIndex)
+    {
+        switch (padIndex)
+        {
+            case 0: case 1: return "KICK";
+            case 2:         return "SNARE";
+            case 3:         return "CLAP";
+            case 4: case 5: return "HAT";
+            case 6: case 7: return "PERC";
+            case 8: case 9: return "TOM";
+            case 10:        return "CRASH";
+            case 11:        return "FX";
+            default:        return "FX";
         }
     }
 
     // Text colours
-    inline juce::Colour textMain()    { return ivoryText(); }
-    inline juce::Colour textDim()     { return mutedText(); }
-    inline juce::Colour textMuted()   { return juce::Colour::fromRGB(120, 113, 99); }
-    inline juce::Colour textDark()    { return juce::Colour::fromRGB(60, 55, 47); }
+    inline juce::Colour textMain()    { return juce::Colour::fromRGB(230, 233, 238); }
+    inline juce::Colour textDim()     { return juce::Colour::fromRGB(148, 154, 164); }
+    inline juce::Colour textMuted()   { return juce::Colour::fromRGB(125, 131, 141); }
+    inline juce::Colour textDark()    { return juce::Colour::fromRGB(100, 106, 116); }
 
     // LED colours
-    inline juce::Colour ledOn()       { return accentOrange(); }
-    inline juce::Colour ledOff()      { return juce::Colour::fromRGB(52, 49, 43); }
-    inline juce::Colour ledGlow()     { return accentOrange().withAlpha(0.4f); }
+    inline juce::Colour ledOn()       { return accent(); }
+    inline juce::Colour ledOff()      { return juce::Colour::fromRGB(44, 48, 56); }
+    inline juce::Colour ledGlow()     { return accent().withAlpha(0.4f); }
 
     // Border / outline
     inline juce::Colour borderSubtle() { return juce::Colour::fromRGBA(255, 255, 255, 16); }
@@ -234,7 +233,7 @@ namespace UITheme
 
     // Section label (floating, above a panel)
     inline void drawSectionHeader(juce::Graphics& g, juce::Rectangle<float> area,
-                                  const juce::String& title, juce::Colour accent = accentOrange())
+                                  const juce::String& title, juce::Colour accent = UITheme::accent())
     {
         g.setColour(panelBase().darker(0.1f));
         g.fillRect(area);

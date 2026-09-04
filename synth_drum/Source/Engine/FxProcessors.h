@@ -394,7 +394,9 @@ public:
             const float dcOutR = outWetR - dcX1[1] + dcR * dcY1[1];
             dcX1[1] = outWetR; dcY1[1] = dcOutR;
 
-            const float dry = 1.0f - mix * 0.5f;
+            // mix == 1 means this instance is used as a pure send return:
+            // no dry bleed at all. Otherwise keep the gentle auto-dry trim.
+            const float dry = mix >= 0.9999f ? 0.0f : 1.0f - mix * 0.5f;
             left[i] = finiteOrZero(dryL * dry + dcOutL * mix);
             if (right != nullptr)
                 right[i] = finiteOrZero(dryR * dry + dcOutR * mix);
@@ -749,8 +751,6 @@ public:
     {
         envL = 0.0f;
         envR = 0.0f;
-        for (auto& s : osStateL) s = 0.0f;
-        for (auto& s : osStateR) s = 0.0f;
     }
 
     struct Params
@@ -853,8 +853,6 @@ private:
     double sr = 44100.0;
     float envL = 0.0f;
     float envR = 0.0f;
-    float osStateL[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-    float osStateR[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 };
 
 } // namespace fx

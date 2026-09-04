@@ -70,7 +70,7 @@ $vst3Bundle = Join-Path $artifactRoot "VST3\uwdevst_drum.vst3"
 if (-not (Test-Path -LiteralPath $standaloneExe -PathType Leaf)) { throw "Standalone executable not found at $standaloneExe." }
 if (-not (Test-Path -LiteralPath $vst3Bundle -PathType Container)) { throw "VST3 bundle not found at $vst3Bundle." }
 
-$stageDir = Join-Path $installerDir "staging"
+$stageDir = Join-Path $buildPath "package_staging"
 $standaloneStageDir = Join-Path $stageDir "Standalone"
 $vst3StageDir = Join-Path $stageDir "VST3"
 if (Test-Path -LiteralPath $stageDir) { Remove-Item -LiteralPath $stageDir -Recurse -Force }
@@ -80,7 +80,7 @@ Copy-Item -LiteralPath $standaloneExe -Destination $standaloneStageDir -Force
 Copy-Item -LiteralPath $vst3Bundle -Destination $vst3StageDir -Recurse -Force
 
 $iscc = Resolve-InnoCompiler -ExplicitPath $InnoSetupPath
-& $iscc "/DAppVersion=$resolvedVersion" $issPath
+& $iscc "/DAppVersion=$resolvedVersion" "/DStagingDir=$stageDir" $issPath
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE." }
 
 $setupPath = Join-Path $installerDir "output\uwdevst_drum_${resolvedVersion}_Windows_x64_Setup.exe"
